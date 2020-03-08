@@ -1,24 +1,18 @@
-import block
-import wallet
-
+# from block import Block
+from wallet import Wallet
 from transaction import Transaction
 from transaction_output import Transaction_Output
 
 from copy import deepcopy
 
-class node:
-	def __init__():
-		self.NBC=100
-		##set
+class Node:
+	def __init__(self, wallet):
+		self.NBC = 100
+		self.chain = []
+		self.current_id_count = 0
+		self.wallet = wallet
 
-		#self.chain
-		#self.current_id_count
-		#self.NBCs
-		#self.wallet
-
-		#slef.ring[]   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
-
-
+		self.ring = []   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
 
 
 	def create_new_block():
@@ -33,22 +27,23 @@ class node:
 		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
 		pass
 
-	def create_transaction(receiver, amount):
+	def create_transaction(self, receiver, amount):
 		UTXOs = self.wallet.transactions
 		transaction_inputs = []
 		transaction_outputs = []
 
 		total = 0 
-		for id, transaction in UTXOs: 	
+		for id, transaction in UTXOs.items(): 	
 			if total < amount:
 				transaction_inputs.append(id)
+				total += transaction.amount
 
 		if total < amount:
 			print("Se fagan oi poutanes")
 			return 
 
 		# TODO: Xreiazetai deepcopy?
-		t = Transaction(self.wallet.public_key, self.wallet.private_key, receiver, amount, deepcopy(transaction_inputs))
+		t = Transaction(self.wallet.public_key, receiver, amount, deepcopy(transaction_inputs))
 		
 		
 		for id in transaction_inputs:
@@ -65,12 +60,18 @@ class node:
 			)
 
 		t.set_transaction_outputs(transaction_outputs)
-		t.sign_transaction(self.wallet.private_key)
+		# t.sign_transaction(self.wallet.private_key)
 
 		#remember to broadcast it
-		broadcast_transaction(t)
+		# broadcast_transaction(t)
 
-	
+		print(t.__dict__)
+
+		for tx in transaction_inputs:
+			print(tx)
+
+		for tx in transaction_outputs:
+			print(tx.__dict__)
 
 	def broadcast_transaction(transaction):
 		pass
@@ -97,8 +98,8 @@ class node:
 
 		
 
-	def valid_proof(.., difficulty=MINING_DIFFICULTY):
-		pass
+	# def valid_proof(.., difficulty=MINING_DIFFICULTY):
+	# 	pass
 
 
 
@@ -113,6 +114,5 @@ class node:
 	def resolve_conflicts(self):
 		pass
 		#resolve correct chain
-
 
 

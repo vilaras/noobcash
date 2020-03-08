@@ -14,15 +14,20 @@ from uuid import uuid4
 
 from transaction import Transaction
 
+'''
+to transaktions einai ntiksioneri
+'''
 class Wallet:
 
-	def __init__(self, transactions):
+	def __init__(self):
 		self.public_key, self.private_key = self.keys()
 		self.address = self.public_key
-		self.transactions = {}
 
 	def balance(self):
 		return sum(transaction.amount for transaction in self.transactions)
+
+	def set_transactions(self, transactions):
+		self.transactions = transactions
 
 	'''
 	Returns private, public key pair in HEX form
