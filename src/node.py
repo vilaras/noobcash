@@ -8,7 +8,7 @@ from copy import deepcopy
 
 class node:
 	def __init__():
-		self.NBC=100
+		self.NBC=100;
 		##set
 
 		#self.chain
