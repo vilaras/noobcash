@@ -18,12 +18,19 @@ class Transaction:
     '''
     Params:
         sender_address: To public key του wallet από το οποίο προέρχονται τα χρήματα
+            Type <string>. Example "id0"
         receiver_address: To public key του wallet στο οποίο θα καταλήξουν τα χρήματα
+            Type <string>. Example "id0"
         amount: το ποσό που θα μεταφερθεί
+            Type <int>. Example 100
         transaction_id: το hash του transaction
+            Type <string>
         transaction_inputs: λίστα από Transaction Input 
+            Type <list(Transaction)>
         transaction_outputs: λίστα από Transaction Output 
-        Signature: Υπογραφή του transaction
+            Type <list(Transaction)>
+        signature: Υπογραφή του transaction
+            Type <???>
     '''
     def __init__(self, sender_address, receiver_address, amount, transaction_inputs):
 

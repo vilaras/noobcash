@@ -15,7 +15,14 @@ from uuid import uuid4
 from transaction import Transaction
 
 '''
-to transaktions einai ntiksioneri
+	Params:
+		public_key: my address known to every node
+			Type <string>. Example "id0"
+		private_key: my crypto key only known to me
+			Type <string???>
+		address: public_key #Giati yparxei?
+		transactions: the transactions that i use as UTXOs to spend coins
+			Type <dict>
 '''
 class Wallet:
 

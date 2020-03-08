@@ -2,10 +2,11 @@ from wallet import Wallet
 from transaction import Transaction
 from node import Node
 
-
+'''Test of node.test_create_wallet() function'''
 def test_create_wallet():
     pass
 
+'''Test of node.create_transaction() function'''
 def test_create_transaction():
     w = Wallet()
 

@@ -6,6 +6,19 @@ from transaction_output import Transaction_Output
 from copy import deepcopy
 
 class Node:
+	'''
+    Params:
+        NBC: The coins given by bootstrap node at the initialization of the network ?
+			Type <int>. Example: 100
+        chain: the blockchain ?
+			Type <Blockchain.class>
+        current_id_count: number of nodes in the network ?
+			Type <int>
+        wallet: the wallet of this node
+			Type <Wallet.class> 
+        ring: information for every node, as its id, its address (ip:port) its public key and its balance 
+			Type <list>
+    '''
 	def __init__(self, wallet):
 		self.NBC = 100
 		self.chain = []
@@ -27,6 +40,15 @@ class Node:
 		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
 		pass
 
+	'''
+		Params:
+			receiver: the address of the receiver to send coins to.
+				Type <string>. Example: "id0"
+			amount: the amount of NBC coins to send to receiver
+				Type <int>. Example: 100
+		Return:	
+			create, sign and broadcast a new transaction of <amount> NBC to the address <receiver> 
+	'''
 	def create_transaction(self, receiver, amount):
 		UTXOs = self.wallet.transactions
 		transaction_inputs = []
@@ -60,18 +82,22 @@ class Node:
 			)
 
 		t.set_transaction_outputs(transaction_outputs)
-		# t.sign_transaction(self.wallet.private_key)
+		#TODO
+		t.sign_transaction(self.wallet.private_key)
 
 		#remember to broadcast it
-		# broadcast_transaction(t)
+		#TODO
+		broadcast_transaction(t)
 
-		print(t.__dict__)
+		#DEBUG
+		# print(t.__dict__)
 
-		for tx in transaction_inputs:
-			print(tx)
+		# for tx in transaction_inputs:
+		# 	print(tx)
 
-		for tx in transaction_outputs:
-			print(tx.__dict__)
+		# for tx in transaction_outputs:
+		# 	print(tx.__dict__)
+		#DEBUG END
 
 	def broadcast_transaction(transaction):
 		pass
