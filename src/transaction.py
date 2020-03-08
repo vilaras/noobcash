@@ -22,19 +22,50 @@ class Transaction:
         transaction_id: το hash του transaction
         transaction_inputs: λίστα από Transaction Input 
         transaction_outputs: λίστα από Transaction Output 
-        Signature
+        Signature: Υπογραφή του transaction
     '''
-    def __init__(self, sender_address, sender_private_key, receiver_address, amount):
+    def __init__(self, sender_address, sender_private_key, receiver_address, amount, transaction_inputs, transaction_outputs):
 
         self.sender_address = sender_address
         self.receiver_address = receiver_address
         self.amount = amount
-        # self.transaction_id = transaction_id
-        # self.transaction_inputs = transaction_inputs
-        # self.transaction_outputs = transaction_outputs
+        self.transaction_id = self.__hash__()
+        self.transaction_inputs = transaction_inputs
+        self.transaction_outputs = []
     
+    # def hash(self):
+    #     transaction = { 
+    #         'sender' : self.sender_address,
+    #         'receiver': self.receiver_address,
+    #         'value': self.amount, 
+    #         'inputs': self.transaction_inputs
+    #     }
+    #     string = json.dumps(transaction, sort_keys=True).encode()
+    #     return hashlib.sha224(string).hexdigest()
 
-    # def sign_transaction(self):
-    #     """
-    #     Sign transaction with private key
-    #     """
+    def set_transaction_outputs(self, transaction_outputs):
+        self.transaction_outputs = transaction_outputs
+
+    def sign_transaction(self):
+        """
+        Sign transaction with private key
+        """
+        private_key = RSA.importKey(binascii.unhexlify(sender_private_key))
+        signer = PKCS1_v1_5.new(private_key)
+        """
+        mydict = OrderedDict({
+            'sender_address': self.sender_address,
+            'receiver_address': self.receiver_address,
+            'value': self.value,
+            'transaction_id': self.transaction_id,
+            'transaction_inputs' : self.transaction_inputs,
+            'transaction_outputs': self.transaction_outputs
+        })
+        """
+        mydict = self.to_dict2()
+        h = SHA.new(str(mydict).encode('utf8'))
+        return binascii.hexlify(signer.sign(h)).decode('ascii')
+
+
+t = Transaction(1, 2, 1, 1)
+print(t.transaction_id)

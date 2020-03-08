@@ -16,10 +16,10 @@ from transaction import Transaction
 
 class Wallet:
 
-	def __init__(self):
+	def __init__(self, transactions):
 		self.public_key, self.private_key = self.keys()
 		self.address = self.public_key
-		self.transactions = []
+		self.transactions = {}
 
 	def balance(self):
 		return sum(transaction.amount for transaction in self.transactions)
