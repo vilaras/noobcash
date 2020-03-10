@@ -20,7 +20,7 @@ from transaction import Transaction
 			Type <string>. Example "id0"
 		private_key: my crypto key only known to me
 			Type <string???>
-		address: public_key #Giati yparxei?
+		address: public_key in HEX #Giati yparxei?
 		transactions: the transactions that i use as UTXOs to spend coins
 			Type <dict>
 '''
@@ -28,7 +28,7 @@ class Wallet:
 
 	def __init__(self):
 		self.public_key, self.private_key = self.keys()
-		self.address = self.public_key
+		self.address = binascii.hexlify(self.public_key.exportKey(format='DER')).decode('ascii')
 
 	def balance(self):
 		return sum(transaction.amount for transaction in self.transactions)
@@ -44,7 +44,7 @@ class Wallet:
 		priv = RSA.generate(1024, random_gen)
 		pub = priv.publickey()
 
-		return binascii.hexlify(priv.exportKey(format='DER')).decode('ascii'), binascii.hexlify(pub.exportKey(format='DER')).decode('ascii')
+		return pub, priv
 
 
 # w = Wallet()
@@ -52,3 +52,4 @@ class Wallet:
 # 	w.transactions.append(Transaction(1, 1, 1, 1))
 
 # print(w.balance())
+w = Wallet()

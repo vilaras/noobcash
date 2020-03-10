@@ -1,14 +1,8 @@
-
 import blockchain
-
-
-
 
 class Block:
 	def __init__(self):
-		##set
-
-		#self.previousHash
+		# self.previousHash
 		#self.timestamp
 		#self.hash
 		#self.nonce

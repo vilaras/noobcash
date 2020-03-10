@@ -19,11 +19,11 @@ class Node:
         ring: information for every node, as its id, its address (ip:port) its public key and its balance 
 			Type <list>
     '''
-	def __init__(self, wallet):
+	def __init__(self):
 		self.NBC = 100
 		self.chain = []
 		self.current_id_count = 0
-		self.wallet = wallet
+		self.wallet = create_wallet()
 
 		self.ring = []   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
 
@@ -33,11 +33,24 @@ class Node:
 
 	def create_wallet():
 		#create a wallet for this node, with a public key and a private key
-		pass
+		return Wallet()
 
 	def register_node_to_ring():
 		#add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
+		# ring: {
+		# 	id: Node,
+		# 	id: Node,
+		# 	id: Node
+		# }
+
+		# Node: {
+		# 	id: 
+		# 	pk:
+		# 	ip: 
+		# 	port:  
+		# 	balance: 
+		# }
 		pass
 
 	'''
@@ -82,12 +95,12 @@ class Node:
 			)
 
 		t.set_transaction_outputs(transaction_outputs)
-		#TODO
+
 		t.sign_transaction(self.wallet.private_key)
 
 		#remember to broadcast it
 		#TODO
-		broadcast_transaction(t)
+		# broadcast_transaction(t)
 
 		#DEBUG
 		# print(t.__dict__)
@@ -112,7 +125,7 @@ class Node:
 		#if enough transactions  mine
 
 
-
+	#Start mining when a block fills up
 	def mine_block():
 		pass
 

@@ -5,7 +5,7 @@ import base64
 
 import Crypto
 import Crypto.Random
-from Crypto.Hash import SHA
+from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
@@ -37,7 +37,7 @@ class Transaction:
         self.sender_address = sender_address
         self.receiver_address = receiver_address
         self.amount = amount
-        self.transaction_id = self.__hash__()
+        self.transaction_id = self.__hash__() #TODO Find the correct hash method
         self.transaction_inputs = transaction_inputs
     
 
@@ -55,18 +55,13 @@ class Transaction:
     #     return hashlib.sha224(string).hexdigest()
 
     def set_transaction_outputs(self, transaction_outputs):
-        self.transaction_outputs = transaction_outputs
-
-
-    # def sign(privatekey,data):
-    #     return base64.b64encode(str((privatekey.sign(data,''))[0]).encode())
-
-    # def verify(publickey,data,sign):
-    #     return publickey.verify(data,(int(base64.b64decode(sign)),))    
+        self.transaction_outputs = transaction_output
 
     """
     Sign transaction with private key
     """
     def sign_transaction(self, private_key):
-        self.signature = base64.b64encode(str((private_key.sign(self,''))[0]).encode())
-        print(self.signature)
+        signer = PKCS1_v1_5.new(private_key)
+        h = SHA256.new(self.__str__().encode("utf8")) 
+
+        self.signature = signer.sign(h)

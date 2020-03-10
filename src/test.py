@@ -16,11 +16,13 @@ def test_create_transaction():
         t.set_transaction_outputs("peos")
         txs[t.transaction_id] = t
 
-    for key, tx in txs.items():
-        print (tx)
+    # for key, tx in txs.items():
+    #     print (tx)
 
     n = Node(w)
     w.set_transactions(txs)
     # print(w.__dict__)
 
     n.create_transaction(2, 10)
+
+test_create_transaction()
