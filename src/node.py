@@ -2,6 +2,7 @@
 from wallet import Wallet
 from transaction import Transaction
 from transaction_output import Transaction_Output
+from ring_node import Ring_Node
 
 from copy import deepcopy
 
@@ -23,39 +24,24 @@ class Node:
 		self.NBC = 100
 		self.chain = []
 		self.current_id_count = 0
-		self.wallet = create_wallet()
+		self.wallet = self.create_wallet()
 
-		self.ring = []   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
+		self.ring = {}   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
 
 
 	def create_new_block():
 		pass
 
-	def create_wallet():
+	def create_wallet(self):
 		#create a wallet for this node, with a public key and a private key
 		return Wallet()
 
-	def register_node_to_ring(new_node, my_key):
+	def register_node_to_ring(self, public_key, ip, port):
 		# add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		# bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
-		# ring: {
-		# 	id: Node,
-		# 	id: Node,
-		# 	id: Node
-		# }
 
-		# Node: {
-		# 	id: 
-		# 	pk:
-		# 	ip: 
-		# 	port:  
-		# 	balance: 
-		# }
-
-		self.current_id_count = self.current_id_count + 1
-		self.ring[current_id_count] = new_node
-		if(self.current_id_count == 
-		pass
+		self.current_id_count += 1
+		self.ring[self.current_id_count] = Ring_Node(self.current_id_count, public_key, ip, port).__dict__ 
 
 	'''
 		Params:
