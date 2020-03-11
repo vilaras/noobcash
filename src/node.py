@@ -35,9 +35,9 @@ class Node:
 		#create a wallet for this node, with a public key and a private key
 		return Wallet()
 
-	def register_node_to_ring():
-		#add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
-		#bottstrap node informs all other nodes and gives the request node an id and 100 NBCs
+	def register_node_to_ring(new_node, my_key):
+		# add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
+		# bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
 		# ring: {
 		# 	id: Node,
 		# 	id: Node,
@@ -51,6 +51,10 @@ class Node:
 		# 	port:  
 		# 	balance: 
 		# }
+
+		self.current_id_count = self.current_id_count + 1
+		self.ring[current_id_count] = new_node
+		if(self.current_id_count == 
 		pass
 
 	'''
