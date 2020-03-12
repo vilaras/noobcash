@@ -3,8 +3,13 @@ from wallet import Wallet
 from transaction import Transaction
 from transaction_output import Transaction_Output
 from ring_node import Ring_Node
+from block import Block
 
 from copy import deepcopy
+
+base_url = "http://"
+headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+CAPACITY = 10
 
 class Node:
 	'''
@@ -25,12 +30,13 @@ class Node:
 		self.chain = []
 		self.current_id_count = 0
 		self.wallet = self.create_wallet()
+		self.current_block = create_new_block()
 
 		self.ring = {}   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
 
 
-	def create_new_block():
-		pass
+	def create_new_block(self):
+		return Block(len(chain), chain[-1].hash, "kati", [])
 
 	def create_wallet(self):
 		#create a wallet for this node, with a public key and a private key
@@ -90,7 +96,7 @@ class Node:
 
 		#remember to broadcast it
 		#TODO
-		# broadcast_transaction(t)
+		broadcast_transaction(t)
 
 		#DEBUG
 		# print(t.__dict__)
@@ -102,27 +108,42 @@ class Node:
 		# 	print(tx.__dict__)
 		#DEBUG END
 
-	def broadcast_transaction(transaction):
-		pass
+	def broadcast_transaction(self, transaction):
+		for node in self.ring.values():
+			response = json.dumps({'transaction': transaction})   
+			url = base_url + node["ip"] + ":" + node["port"] + "/new_transaction"
 
-	def validate_transaction():
-		pass
-		#use of signature and NBCs balance
+			response = requests.post(url, data=response, headers=headers) 
+
+	def is_valid_signature(self, transaction):
+		pass		
+
+	def validate_transaction(self, transaction):
+		# TODO Check if the transactions are UTXO 
+		total = sum(utxo.amount for utxo in transaction.transaction_inputs)
+
+		return total >= transaction.amount and is_valid_signature(transaction)
 
 
-	def add_transaction_to_block():
-		pass
-		#if enough transactions  mine
+	def add_transaction_to_block(self, transaction):
+		if validate_transaction(transaction):
+			self.current_block.add_transaction(transaction)
+		
+		if len(self.current_block.transactions) == CAPACITY:
+			self.mine_block()
 
 
 	#Start mining when a block fills up
-	def mine_block():
+	def mine_block(self):
 		pass
 
 
+	def broadcast_block(self):
+		for node in self.ring.values():
+			response = json.dumps({'block': block})   
+			url = base_url + node["ip"] + ":" + node["port"] + "/new_transaction"
 
-	def broadcast_block():
-		pass
+			response = requests.post(url, data=response, headers=headers) 
 
 
 		

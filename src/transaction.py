@@ -33,7 +33,6 @@ class Transaction:
             Type <???>
     '''
     def __init__(self, sender_address, receiver_address, amount, transaction_inputs):
-
         self.sender_address = sender_address
         self.receiver_address = receiver_address
         self.amount = amount

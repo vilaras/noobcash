@@ -4,6 +4,7 @@ from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 
 from node import Node
+import time
 
 import sys
 #import block
@@ -48,7 +49,7 @@ def get_nodes():
     data = request.get_json()
     ring = data["ring"]
 
-    print(ring)
+    # print(ring)
 
     return jsonify("Thanks for your cooperation"), 200 
 
@@ -56,7 +57,6 @@ def get_nodes():
 # TODO: Fix post for many nodes
 @app.route('/connect', methods=['POST'])
 def connect():
-    # print(my_ip, BOOTSTRAP["ip"], port, BOOTSTRAP["port"])
     if im_bootstrap(my_ip, port):
         if this_node.current_id_count <= NUMBER_OF_NODES - 1:
             data = request.get_json()
@@ -70,8 +70,11 @@ def connect():
                     response = json.dumps({'ring': this_node.ring, "id": id})   
                     url = base_url + node["ip"] + ":" + node["port"] + "/get_nodes" 
 
-                    requests.post(url, data=response, headers=headers) 
-
+                    try:
+                        response = requests.post(url, data=response, headers=headers) 
+                    except requests.exceptions.ConnectionError:
+                        print("something happened")
+                
             return jsonify("Welcome to our noobcash network!"), 200
 
         else:  
@@ -79,7 +82,8 @@ def connect():
         
 
 
-#TODO Make it work for public IPs
+# TODO Make it work for public IPs
+# TODO Send message to last node and make bootstrap connect
 if __name__ == '__main__':
     from argparse import ArgumentParser
 
