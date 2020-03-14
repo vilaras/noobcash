@@ -17,7 +17,7 @@ class Wallet:
 		self.UTXOs = {}
 
 	def balance(self):
-		return sum(UTXOs.amount for UTXO in self.UTXOs)
+		return sum(UTXO.amount for UTXO in self.UTXOs)
 
 	def add_UTXO(self, UTXO):
 		self.UTXOs[UTXO.transaction_id] = UTXO

@@ -15,7 +15,7 @@ class Broadcast:
                 response = requests.post(url, data=json.dumps(payload), headers=self.headers)
             
             except requests.exceptions.Timeout:
-                print(f'broadcast: Request "{ulr}" timed out')
+                print(f'broadcast: Request timed out')
 
     def add_peer(self, ip, port):
         self.peers.append((ip, port))

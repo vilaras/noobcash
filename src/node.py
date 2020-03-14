@@ -102,7 +102,7 @@ class Node:
 
 
 	def add_transaction_to_block(self, transaction):
-		if validate_transaction(transaction):
+		if self.validate_transaction(transaction):
 			self.current_block.add_transaction(transaction)
 		
 		if len(self.current_block.transactions) == BLOCK_CAPACITY:
@@ -118,7 +118,7 @@ class Node:
 
 			if self.current_block.hash[:MINING_DIFFICULTY] == '0' * MINING_DIFFICULTY:
 				print("success")
-				self.broadcast_block()
+				self.broadcast_block(self.current_block)
 				break
 			
 			else:
@@ -127,19 +127,19 @@ class Node:
 
 
 				
-	def create_genesis_block():
-		t = Transaction(0, node.wallet.address, NUMBER_OF_NODES * 100, [])
-		t.sign_transaction(node.wallet.address)
+	def create_genesis_block(self):
+		t = Transaction(0, self.wallet.address, NUMBER_OF_NODES * 100, [])
+		t.sign_transaction(self.wallet.address)
 
 		return Block(0, 1, 0, [t])
 
-	def initialize_network():
-		g = node.create_genesis_block()
-		node.broadcast_block(g)
+	def initialize_network(self):
+		g = self.create_genesis_block()
+		self.broadcast_block(g)
 		
-		for peer in node.ring.values():
-			t = node.create_transaction(peer['public_key'], 100)
-			node.broadcast_transaction(t)
+		for peer in self.ring.values():
+			t = self.create_transaction(peer['public_key'], 100)
+			self.broadcast_transaction(t)
 
 
 	# Validation Functions
@@ -167,7 +167,7 @@ class Node:
 		return total >= transaction.amount and self.validate_signature(transaction)
 
 
-	def validate_block():
+	def validate_block(self):
 		pass
 
 

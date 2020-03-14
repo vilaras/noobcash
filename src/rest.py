@@ -68,11 +68,11 @@ def im_bootstrap(ip, my_port):
 # Receive data
 #.......................................................................................
 
-@app.route('/receive_transaction', methods=['POST'])
-def receive_transaction():
+# @app.route('/receive_transaction', methods=['POST'])
+# def receive_transaction():
 
 
-    return jsonify(response), 200
+#     return jsonify(response), 200
 
 
 

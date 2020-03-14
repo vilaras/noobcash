@@ -8,7 +8,7 @@ class Ring_Node:
         self.UTXOs = {}
 
     def set_balance(self):
-        self.balance = sum(UTXO.amount for UTXO in UTXOs.values())
+        self.balance = sum(UTXO.amount for UTXO in self.UTXOs.values())
 
     def add_UTXO(self, UTXO):
         self.UTXOs[UTXO.transaction_id] = UTXO
