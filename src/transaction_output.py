@@ -5,10 +5,13 @@ from Crypto.Hash import SHA256
 import json
 
 '''
-Params:
-    transaction_input_id: το id του transaction από το οποίο προέρχεται
-    receiver_address: τον recipient του transaction
-    amount: το ποσό που μεταφέρθηκε
+Attributes:
+    transaction_input_id: A unique number identifying the transaction output
+        Type <int>
+    receiver_address: Receiver's public key
+        Type <str>. 
+    amount: The amount of NBC coins to be transfered
+        Type <int>.
 '''
 class Transaction_Output:
     def __init__(self, receiver_address, amount, previous_transaction_id):

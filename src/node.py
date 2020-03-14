@@ -79,7 +79,7 @@ class Node:
 				total += transaction.amount
 
 		if total < amount:
-			print("Se fagan oi poutanes")
+			print("Den exeis fragko, eisai mpatiraki...")
 			return 
 
 		t = Transaction(self.wallet.public_key, receiver_address, amount, deepcopy(transaction_inputs))
@@ -87,10 +87,14 @@ class Node:
 		for id in transaction_inputs:
 			del UTXOs[id]
 
+		UTXO = Transaction_Output(receiver_address, amount, t.transaction_id)
+		transaction_outputs.append(UTXO)
+		self.ring[receiver_address].UTXOs[UTXO.transaction_id] = UTXO
 
-		transaction_outputs.append(Transaction_Output(receiver_address, amount, t.transaction_id))
 		if total > amount:
-			transaction_outputs.append(Transaction_Output(self.wallet.public_key, total - amount, t.transaction_id))
+			UTXO = Transaction_Output(self.wallet.public_key, total - amount, t.transaction_id)
+			transaction_outputs.append(UTXO)
+			self.wallet.UTXOs[UTXO.transaction_id] = UTXO
 
 		t.set_transaction_outputs(transaction_outputs)
 		t.sign_transaction(self.wallet.private_key)
@@ -99,14 +103,6 @@ class Node:
 		self.broadcast_transaction(t)
 
 		return t
-
-
-	def add_transaction_to_block(self, transaction):
-		if self.validate_transaction(transaction):
-			self.current_block.add_transaction(transaction)
-		
-		if len(self.current_block.transactions) == BLOCK_CAPACITY:
-			self.mine_block()
 
 
 	#Start mining when a block fills up
@@ -126,12 +122,15 @@ class Node:
 				print(self.current_block.hash[:MINING_DIFFICULTY])
 
 
-				
+
+	# Initialization Functions
+
 	def create_genesis_block(self):
-		t = Transaction(0, self.wallet.address, NUMBER_OF_NODES * 100, [])
-		t.sign_transaction(self.wallet.address)
+		t = Transaction(0, self.wallet.public_key, NUMBER_OF_NODES * 100, [])
+		t.sign_transaction(self.wallet.public_key)
 
 		return Block(0, 1, 0, [t])
+
 
 	def initialize_network(self):
 		g = self.create_genesis_block()
@@ -140,6 +139,36 @@ class Node:
 		for peer in self.ring.values():
 			t = self.create_transaction(peer['public_key'], 100)
 			self.broadcast_transaction(t)
+
+
+
+	def add_transaction_to_block(self, transaction):
+		if self.validate_transaction(transaction):
+			self.commit_transaction(transaction)
+			self.current_block.add_transaction(transaction)
+		
+		if len(self.current_block.transactions) == BLOCK_CAPACITY:
+			self.mine_block()
+
+
+	# If a transaction is valid, then commit it
+	def commit_transaction(self, transaction):
+		# Remove spent UTXOs
+		if transaction.sender_address == self.wallet.public_key:
+			for transaction_id in transaction.transaction_inputs:
+				del self.wallet.UTXOs[transaction_id]
+
+		else:
+			for transaction_id in transaction.transaction_inputs:
+				del self.ring[transaction.sender_address].UTXOs[transaction_id]
+
+		# Add new UTXOs
+		for UTXO in transaction.transaction_outputs:
+			if transaction.receiver_address == self.wallet.public_key:
+				self.wallet.UTXOs[UTXO.transaction_id] = UTXO
+			
+			else:
+				self.ring[transaction.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
 
 
 	# Validation Functions
@@ -154,17 +183,31 @@ class Node:
 		return verifier.verify(h, transaction.signature)
 
 
+	def validate_user(self, public_key):
+		return public_key in self.ring or public_key == self.wallet.public_key
+
+
 	def validate_transaction(self, transaction):
+		if not validate_user(transaction.sender_address) or not validate_user(transaction.receiver_address):
+			print("I don't know these people!")
+			return False
+
 		UTXOs = self.ring[transaction.sender_address].UTXOs
 		for transaction_id in transaction.transaction_inputs:
 			if not transaction_id in UTXOs:
 				print("Invalid UTXO!! Thief!!")
-				break
+				return False
 
-		# TODO Check if the transaction inputs are UTXOs for the sender  
 		total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
 
-		return total >= transaction.amount and self.validate_signature(transaction)
+		if total >= transaction.amount:
+			change = sum(UTXO.amount for UTXO in transaction.transaction_output)
+
+			return (total - transcation.amount == change) and self.validate_signature(transaction)
+
+		else:
+			print("Not enough money to commit the transaction")
+			return False
 
 
 	def validate_block(self):

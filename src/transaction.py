@@ -8,20 +8,20 @@ import json
 import binascii
 
 '''
-Params:
-    sender_address: To public key του wallet από το οποίο προέρχονται τα χρήματα
-        Type <string>. Example "id0"
-    receiver_address: To public key του wallet στο οποίο θα καταλήξουν τα χρήματα
-        Type <string>. Example "id0"
-    amount: το ποσό που θα μεταφερθεί
-        Type <int>. Example 100
-    transaction_id: το hash του transaction
-        Type <string>
-    transaction_inputs: list of input transaction IDs 
+Attributes:
+    sender_address: Sender's public key
+        Type <str>. 
+    receiver_address: Receiver's public key
+        Type <str>. 
+    amount: The amount of NBC coins to be transfered
+        Type <int>. 
+    transaction_id: A unique number identifying the transaction
+        Type <int>
+    transaction_inputs: List of input transaction IDs 
         Type <list int>
     transaction_outputs: list of Transaction Outputs
         Type <list Transaction_Output>
-    signature: Υπογραφή του transaction
+    signature: A Signature verifying the transactions authenticity
         Type <bytes>
 '''
 class Transaction:
@@ -35,7 +35,7 @@ class Transaction:
         self.transaction_id = self.hash.hexdigest()
 
     def __hash__(self):
-        return SHA256.new(
+        self.hash = SHA256.new(
             json.dumps(
                 dict(
                     sender_address = self.sender_address,
@@ -48,10 +48,14 @@ class Transaction:
                 )
             ).encode()
         )
+
+        return self.hash
         
+    def __str__(self):
+        return f'sender_address: {self.sender_address} \nreceiver_address: {self.receiver_address} \namount: {self.amount} \ntransaction_inputs: {self.transaction_inputs} \ntransaction_outputs: {self.transaction_outputs} \ntransaction_id: {self.transaction_id} \nsignature: {self.signature}'
+    
     def set_transaction_outputs(self, transaction_outputs):
         self.transaction_outputs = transaction_outputs
-
 
     """
     Sign transaction with private key
@@ -64,6 +68,4 @@ class Transaction:
 
         self.signature = signer.sign(h)
 
-    def __str__(self):
-        return f'sender_address: {self.sender_address} \nreceiver_address: {self.receiver_address} \namount: {self.amount} \ntransaction_inputs: {self.transaction_inputs} \ntransaction_outputs: {self.transaction_outputs} \ntransaction_id: {self.transaction_id} \nsignature: {self.signature}'
 

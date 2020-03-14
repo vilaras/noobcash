@@ -58,7 +58,7 @@ def test_verify_signature():
     t = Transaction(n1.wallet.public_key, n2.wallet.public_key, 100, [])
     t.sign_transaction(n1.wallet.private_key)
 
-    if n1.is_valid_signature(t):
+    if n1.validate_signature(t):
         print ("The signature is authentic.")
     else:  
         print ("The signature is not authentic.")
