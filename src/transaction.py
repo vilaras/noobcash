@@ -5,6 +5,7 @@ from Crypto.Signature import PKCS1_v1_5
 
 # Util imports
 import json
+import binascii
 
 '''
 Params:
@@ -30,7 +31,8 @@ class Transaction:
         self.amount = amount
         self.transaction_inputs = transaction_inputs
         self.transaction_outputs = []
-        self.transaction_id = self.__hash__() 
+        self.hash = self.__hash__()
+        self.transaction_id = self.hash.hexdigest()
 
     def __hash__(self):
         return SHA256.new(
@@ -55,7 +57,7 @@ class Transaction:
     Sign transaction with private key
     """
     def sign_transaction(self, private_key):
-        h = self.__hash__()
+        h = self.hash
 
         private_key = RSA.importKey(private_key)
         signer = PKCS1_v1_5.new(private_key)
@@ -65,11 +67,3 @@ class Transaction:
     def __str__(self):
         return f'sender_address: {self.sender_address} \nreceiver_address: {self.receiver_address} \namount: {self.amount} \ntransaction_inputs: {self.transaction_inputs} \ntransaction_outputs: {self.transaction_outputs} \ntransaction_id: {self.transaction_id} \nsignature: {self.signature}'
 
-
-# random_gen = Crypto.Random.new().read
-# priv = RSA.generate(1024, random_gen)
-
-# t = Transaction(1, 1, 1, [])
-# t.sign_transaction(priv)
- 
-# print(t.__hash__())

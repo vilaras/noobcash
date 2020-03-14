@@ -20,7 +20,11 @@ class Transaction_Output:
     def __hash__(self):
         return SHA256.new(
             json.dumps(
-                self.__dict__
+                dict(
+                    receiver_address = self.receiver_address,
+                    amount = self.amount,
+                    previous_transaction_id = self.previous_transaction_id
+                )
             ).encode()
         ).hexdigest()
 

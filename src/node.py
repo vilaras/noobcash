@@ -39,10 +39,7 @@ class Node:
 		self.wallet = self.create_wallet()
 		self.current_block = self.create_new_block()
 		self.broadcast = Broadcast()
-
-		self.ring = {}   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
-
-
+		self.ring = {}   #here we store information for every node, as its id, its address (ip:port) its public key, its balance and it's UTXOs 
 
 	def create_new_block(self):
 		# return Block(len(self.chain), self.chain[-1].hash, "kati", [])
@@ -56,7 +53,7 @@ class Node:
 		# add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		# bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
 
-		self.ring[self.current_id_count] = Ring_Node(self.current_id_count, public_key, ip, port).__dict__ 
+		self.ring[public_key] = Ring_Node(self.current_id_count, public_key, ip, port).__dict__ 
 		self.current_id_count += 1
 		self.broadcast.add_peer(ip, port)
 
@@ -69,7 +66,8 @@ class Node:
 	Return:	
 		create, sign and broadcast a new transaction of <amount> NBC to the address <receiver> 
 	'''
-	def create_transaction(self, receiver, amount):
+	# TODO: Add valid UTXOs in the end of transaction
+	def create_transaction(self, receiver_address, amount):
 		UTXOs = self.wallet.UTXOs
 		transaction_inputs = []
 		transaction_outputs = []
@@ -84,13 +82,13 @@ class Node:
 			print("Se fagan oi poutanes")
 			return 
 
-		t = Transaction(self.wallet.public_key, receiver, amount, deepcopy(transaction_inputs))
+		t = Transaction(self.wallet.public_key, receiver_address, amount, deepcopy(transaction_inputs))
 		
 		for id in transaction_inputs:
 			del UTXOs[id]
 
 
-		transaction_outputs.append(Transaction_Output(receiver, amount, t.transaction_id))
+		transaction_outputs.append(Transaction_Output(receiver_address, amount, t.transaction_id))
 		if total > amount:
 			transaction_outputs.append(Transaction_Output(self.wallet.public_key, total - amount, t.transaction_id))
 
@@ -100,10 +98,7 @@ class Node:
 		# remember to broadcast it
 		self.broadcast_transaction(t)
 
-
 		return t
-
-
 
 
 	def add_transaction_to_block(self, transaction):
@@ -132,8 +127,6 @@ class Node:
 
 
 				
-
-
 	def create_genesis_block():
 		t = Transaction(0, node.wallet.address, NUMBER_OF_NODES * 100, [])
 		t.sign_transaction(node.wallet.address)
@@ -151,21 +144,28 @@ class Node:
 
 	# Validation Functions
 
-	def is_valid_signature(self, transaction):
+	def validate_signature(self, transaction):
 		public_key = transaction.sender_address
 		public_key = RSA.importKey(public_key)
 
 		verifier = PKCS1_v1_5.new(public_key)
-		h = transaction.transaction_id
+		h = transaction.hash
 
 		return verifier.verify(h, transaction.signature)
 
 
 	def validate_transaction(self, transaction):
-		# TODO Check if the transactions are UTXO 
-		total = sum(utxo.amount for utxo in transaction.transaction_inputs)
+		UTXOs = self.ring[transaction.sender_address].UTXOs
+		for transaction_id in transaction.transaction_inputs:
+			if not transaction_id in UTXOs:
+				print("Invalid UTXO!! Thief!!")
+				break
 
-		return total >= transaction.amount and is_valid_signature(transaction)
+		# TODO Check if the transaction inputs are UTXOs for the sender  
+		total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
+
+		return total >= transaction.amount and self.validate_signature(transaction)
+
 
 	def validate_block():
 		pass
