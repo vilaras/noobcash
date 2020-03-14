@@ -1,11 +1,14 @@
-import json
+# Cryptographic imports
 from Crypto.Hash import SHA256
 
+# Util imports
+import json
+
 '''
-    Params:
-        transaction_input_id: το id του transaction από το οποίο προέρχεται
-        receiver_address: τον recipient του transaction
-        amount: το ποσό που μεταφέρθηκε
+Params:
+    transaction_input_id: το id του transaction από το οποίο προέρχεται
+    receiver_address: τον recipient του transaction
+    amount: το ποσό που μεταφέρθηκε
 '''
 class Transaction_Output:
     def __init__(self, receiver_address, amount, previous_transaction_id):

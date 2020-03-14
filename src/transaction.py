@@ -1,17 +1,10 @@
-from collections import OrderedDict
-
-import binascii
-import base64
-
-import Crypto
-import Crypto.Random
+# Cryptographic imports
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
-import requests
+# Util imports
 import json
-from flask import Flask, jsonify, request, render_template
 
 '''
 Params:
@@ -43,13 +36,16 @@ class Transaction:
         return SHA256.new(
             json.dumps(
                 dict(
+                    sender_address = self.sender_address,
+                    receiver_address = self.receiver_address,
+                    amount = self.amount,
                     transactions_in_count = len(self.transaction_inputs),
                     transaction_inputs = self.transaction_inputs,
                     transactions_out_count = len(self.transaction_outputs),
                     transaction_outputs = [tx.__dict__ for tx in self.transaction_outputs]
                 )
             ).encode()
-        ).hexdigest()
+        )
         
     def set_transaction_outputs(self, transaction_outputs):
         self.transaction_outputs = transaction_outputs
@@ -59,20 +55,11 @@ class Transaction:
     Sign transaction with private key
     """
     def sign_transaction(self, private_key):
-        h = SHA256.new(
-            json.dumps(
-                dict(
-                    sender_address = self.sender_address,
-                    receiver_address = self.receiver_address,
-                    amount = self.amount,
-                    transaction_inputs = self.transaction_inputs,
-                    transaction_outputs = [tx.__dict__ for tx in self.transaction_outputs],
-                    transaction_id = self.__hash__()
-                )
-            ).encode()
-        ) 
+        h = self.__hash__()
 
+        private_key = RSA.importKey(private_key)
         signer = PKCS1_v1_5.new(private_key)
+
         self.signature = signer.sign(h)
 
     def __str__(self):

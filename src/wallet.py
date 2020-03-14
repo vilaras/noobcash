@@ -1,18 +1,6 @@
-import binascii
-
-import Crypto
+# Cryptographic imports
 import Crypto.Random
-from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
-from Crypto.Signature import PKCS1_v1_5
-
-import hashlib
-import json
-from time import time
-from urllib.parse import urlparse
-from uuid import uuid4
-
-from transaction import Transaction
 
 '''
 Params:
@@ -20,14 +8,12 @@ Params:
 		Type <string>. Example "id0"
 	private_key: my crypto key only known to me
 		Type <string???>
-	address: public_key in HEX #Giati yparxei?
 	transactions: valid UTXOs
 		Type <dict>
 '''
 class Wallet:
 	def __init__(self):
 		self.public_key, self.private_key = self.keys()
-		self.address = binascii.hexlify(self.public_key.exportKey(format='DER')).decode('ascii')
 		self.UTXOs = {}
 
 	def balance(self):
@@ -37,11 +23,13 @@ class Wallet:
 		self.UTXOs[UTXO.transaction_id] = UTXO
 
 	'''
-	Returns private, public key pair in HEX form
+	Returns private, public key pair in PEM form
 	'''
 	def keys(self):
 		random_gen = Crypto.Random.new().read
-		priv = RSA.generate(2048, random_gen)
-		pub = priv.publickey()
+		keypair = RSA.generate(2048, random_gen)
 
-		return pub, priv
+		privkey = keypair.exportKey('PEM').decode()
+		pubkey = keypair.publickey().exportKey('PEM').decode()
+
+		return pubkey, privkey

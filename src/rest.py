@@ -1,60 +1,51 @@
-import requests
-import json
+# Flask imports
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 
-from node import Node
-from time import sleep
-
+# Util imports
+import requests
+import json
 import sys
-#import block
-#import blockchain
-#import wallet
-#import transaction
 
+# Class imports
+from node import Node
 
-NUMBER_OF_NODES = 3
-BOOTSTRAP = {
-    'ip': '127.0.0.1',
-    'port': '5000'
-}
+# Configuration parameters
+from config import *
 
 base_url = "http://"
-bootstrap_url = f'{base_url}{BOOTSTRAP["ip"]}:{BOOTSTRAP["port"]}'
+bootstrap_url = f'{base_url}{BOOTSTRAP_IP}:{BOOTSTRAP_PORT}'
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 
 app = Flask(__name__)
 CORS(app)
 
+# User Node 
 node = None
-#blockchain = Blockchain()
-    
 
+
+'''
+Params:
+    ip <int>: User ip
+    port <int>: User port
+Returns <bool>: 
+    Returns if user is the bootstrap node
+'''
 def im_bootstrap(ip, my_port):
-    return ip == BOOTSTRAP["ip"] and my_port == BOOTSTRAP["port"]
-
-
-def broadcast(endpoint, payload):
-    for peer in node.ring.values():
-        try:
-            url = f'{base_url}{peer["ip"]}:{peer["port"]}/{endpoint}'
-            response = requests.post(url, data=json.dumps(payload), headers=headers)
-        
-        except requests.exceptions.Timeout:
-            print(f'broadcast: Request "{ulr}" timed out')
+    return f'{base_url}{ip}:{port}' == bootstrap_url
 
 
 # Send data
 #.......................................................................................
 
 # get all transactions in the blockchain
-@app.route('/view_transactions', methods=['GET'])
-def view_transactions():
-    transactions = blockchain.transactions
+# @app.route('/view_transactions', methods=['GET'])
+# def view_transactions():
+#     transactions = blockchain.transactions
 
-    response = {'transactions': transactions}
+#     response = {'transactions': transactions}
 
-    return jsonify(response), 200
+#     return jsonify(response), 200
 
 # get all transactions in the blockchain
 # @app.route('/show balance', methods=['GET'])
@@ -73,14 +64,22 @@ def view_transactions():
 #     return jsonify(response), 200
 
 
+
 # Receive data
 #.......................................................................................
+
+@app.route('/receive_transaction', methods=['POST'])
+def receive_transaction():
+
+
+    return jsonify(response), 200
 
 
 
 
 # Connect
 #.......................................................................................
+
 @app.route('/register_client', methods=['POST'])
 def register_client():
     global node
@@ -88,7 +87,7 @@ def register_client():
     if node == None:
         # Initialize node 
         node = Node()
-        
+
         #Connect with the rest of the network
         try: 
             data = json.dumps({
@@ -96,8 +95,6 @@ def register_client():
                 "remote_port": port
             })
 
-            # if not im_bootstrap(host, port):
-            # print(response.json())
             response = requests.post(f'{bootstrap_url}/client_connect', data=data, headers=headers)
 
         except requests.exceptions.Timeout:
@@ -116,7 +113,7 @@ def client_accepted():
     data = request.get_json()
     ring = data["ring"]
     
-    print(ring)
+    node.ring = ring
 
     return jsonify("Thanks bootstrap!"), 200 
 
@@ -124,10 +121,6 @@ def client_accepted():
 @app.route('/client_connect', methods=['POST'])
 def client_connect():
     if im_bootstrap(ip, port):
-        # Register bootstrap node
-        # if node.current_id_count == 0:
-        #     node.register_node_to_ring(node.wallet.public_key, BOOTSTRAP["ip"], BOOTSTRAP["port"])
-
         if node.current_id_count <= NUMBER_OF_NODES:
             data = request.get_json()
             public_key = data['public_key']
@@ -136,8 +129,11 @@ def client_connect():
             
             node.register_node_to_ring(public_key, remote_ip, remote_port) 
             
+
             if node.current_id_count == NUMBER_OF_NODES:
-                broadcast("client_accepted", {"ring": node.ring})
+                node.broadcast.broadcast("client_accepted", {"ring": node.ring})
+                node.initialize_network()
+
 
             return jsonify("Welcome to our noobcash network!"), 200
 

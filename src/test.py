@@ -1,7 +1,9 @@
+# Class imports
 from wallet import Wallet
 from transaction import Transaction
 from transaction_output import Transaction_Output
 from node import Node
+
 
 '''Test of node.test_create_wallet() function'''
 def test_create_wallet():
@@ -48,5 +50,20 @@ def test_mine_block():
     n.mine_block()    
 
 
+def test_verify_signature():
+    n1 = Node()
+    n2 = Node()
+
+    t = Transaction(n1.wallet.public_key, n2.wallet.public_key, 100, [])
+    t.sign_transaction(n1.wallet.private_key)
+
+    if n1.is_valid_signature(t):
+        print ("The signature is authentic.")
+    else:  
+        print ("The signature is not authentic.")
+
+
+
 # test_create_transaction()
 # test_mine_block()
+test_verify_signature()

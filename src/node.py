@@ -1,18 +1,22 @@
+# Cryptographic imports
 import Crypto.Random.random as rand
+from Crypto.PublicKey import RSA
+from Crypto.Signature import PKCS1_v1_5
 
-# from block import Block
+# Class imports
 from wallet import Wallet
 from transaction import Transaction
 from transaction_output import Transaction_Output
 from ring_node import Ring_Node
 from block import Block
+from broadcast import Broadcast
 
+# Configuration parameters
+from config import *
+
+# Util imports
 from copy import deepcopy
 
-base_url = "http://"
-headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
-CAPACITY = 10
-MINING_DIFFICULTY = 2
 
 '''
 Params:
@@ -29,13 +33,15 @@ Params:
 '''
 class Node:
 	def __init__(self):
-		self.NBC = 100
+		self.NBC = 0
 		self.chain = []
 		self.current_id_count = 0
 		self.wallet = self.create_wallet()
 		self.current_block = self.create_new_block()
+		self.broadcast = Broadcast()
 
 		self.ring = {}   #here we store information for every node, as its id, its address (ip:port) its public key and its balance 
+
 
 
 	def create_new_block(self):
@@ -50,17 +56,18 @@ class Node:
 		# add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		# bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
 
-		self.current_id_count += 1
 		self.ring[self.current_id_count] = Ring_Node(self.current_id_count, public_key, ip, port).__dict__ 
+		self.current_id_count += 1
+		self.broadcast.add_peer(ip, port)
 
 	'''
-		Params:
-			receiver: the address of the receiver to send coins to.
-				Type <string>. Example: "id0"
-			amount: the amount of NBC coins to send to receiver
-				Type <int>. Example: 100
-		Return:	
-			create, sign and broadcast a new transaction of <amount> NBC to the address <receiver> 
+	Params:
+		receiver: the address of the receiver to send coins to.
+			Type <string>. Example: "id0"
+		amount: the amount of NBC coins to send to receiver
+			Type <int>. Example: 100
+	Return:	
+		create, sign and broadcast a new transaction of <amount> NBC to the address <receiver> 
 	'''
 	def create_transaction(self, receiver, amount):
 		UTXOs = self.wallet.UTXOs
@@ -77,11 +84,7 @@ class Node:
 			print("Se fagan oi poutanes")
 			return 
 
-		
-
-		# TODO: Xreiazetai deepcopy?
-		t = Transaction(self.wallet.address, receiver, amount, deepcopy(transaction_inputs))
-		
+		t = Transaction(self.wallet.public_key, receiver, amount, deepcopy(transaction_inputs))
 		
 		for id in transaction_inputs:
 			del UTXOs[id]
@@ -89,50 +92,25 @@ class Node:
 
 		transaction_outputs.append(Transaction_Output(receiver, amount, t.transaction_id))
 		if total > amount:
-			transaction_outputs.append(Transaction_Output(self.wallet.address, total - amount, t.transaction_id))
+			transaction_outputs.append(Transaction_Output(self.wallet.public_key, total - amount, t.transaction_id))
 
 		t.set_transaction_outputs(transaction_outputs)
 		t.sign_transaction(self.wallet.private_key)
 
 		# remember to broadcast it
-		# self.broadcast_transaction(t)
+		self.broadcast_transaction(t)
 
-		#DEBUG
-		# print(t.__dict__['transactions'])
-
-		# for tx in transaction_inputs:
-		# 	print(tx)
-
-		# for tx in transaction_outputs:
-		# 	print(tx.__dict__)
-		#DEBUG END
 
 		return t
 
-	def broadcast_transaction(self, transaction):
-		response = json.dumps({'transaction': transaction})   
-		for node in self.ring.values():
-			url = base_url + node["ip"] + ":" + node["port"] + "/new_transaction"
 
-			response = requests.post(url, data=response, headers=headers) 
-
-
-	def is_valid_signature(self, transaction):
-		pass		
-
-
-	def validate_transaction(self, transaction):
-		# TODO Check if the transactions are UTXO 
-		total = sum(utxo.amount for utxo in transaction.transaction_inputs)
-
-		return total >= transaction.amount and is_valid_signature(transaction)
 
 
 	def add_transaction_to_block(self, transaction):
 		if validate_transaction(transaction):
 			self.current_block.add_transaction(transaction)
 		
-		if len(self.current_block.transactions) == CAPACITY:
+		if len(self.current_block.transactions) == BLOCK_CAPACITY:
 			self.mine_block()
 
 
@@ -152,18 +130,59 @@ class Node:
 				print("skata")
 				print(self.current_block.hash[:MINING_DIFFICULTY])
 
+
 				
 
 
-	def broadcast_block(self):
-		for node in self.ring.values():
-			response = json.dumps({'block': self.current_block})   
-			url = base_url + node["ip"] + ":" + node["port"] + "/new_transaction"
+	def create_genesis_block():
+		t = Transaction(0, node.wallet.address, NUMBER_OF_NODES * 100, [])
+		t.sign_transaction(node.wallet.address)
 
-			response = requests.post(url, data=response, headers=headers) 
+		return Block(0, 1, 0, [t])
+
+	def initialize_network():
+		g = node.create_genesis_block()
+		node.broadcast_block(g)
+		
+		for peer in node.ring.values():
+			t = node.create_transaction(peer['public_key'], 100)
+			node.broadcast_transaction(t)
 
 
-	#concensus functions
+	# Validation Functions
+
+	def is_valid_signature(self, transaction):
+		public_key = transaction.sender_address
+		public_key = RSA.importKey(public_key)
+
+		verifier = PKCS1_v1_5.new(public_key)
+		h = transaction.transaction_id
+
+		return verifier.verify(h, transaction.signature)
+
+
+	def validate_transaction(self, transaction):
+		# TODO Check if the transactions are UTXO 
+		total = sum(utxo.amount for utxo in transaction.transaction_inputs)
+
+		return total >= transaction.amount and is_valid_signature(transaction)
+
+	def validate_block():
+		pass
+
+
+	# Broadcast functions
+
+	def broadcast_block(self, block):
+		self.broadcast.broadcast('receive_block', {'block': block})
+
+
+	def broadcast_transaction(self, transaction):
+		self.broadcast.broadcast('receive_transaction', {'transaction': transaction})
+
+
+
+	# Concensus functions
 
 	def valid_chain(self, chain):
 		pass
