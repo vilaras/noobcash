@@ -41,7 +41,7 @@ class Wallet:
 	'''
 	def keys(self):
 		random_gen = Crypto.Random.new().read
-		priv = RSA.generate(1024, random_gen)
+		priv = RSA.generate(2048, random_gen)
 		pub = priv.publickey()
 
 		return pub, priv
