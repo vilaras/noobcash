@@ -49,10 +49,9 @@ class Node:
 		#create a wallet for this node, with a public key and a private key
 		return Wallet()
 
+	# Add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
+	# Bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
 	def register_node_to_ring(self, public_key, ip, port):
-		# add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
-		# bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
-
 		self.ring[public_key] = Ring_Node(self.current_id_count, public_key, ip, port) 
 		self.current_id_count += 1
 		self.broadcast.add_peer(ip, port)
@@ -68,7 +67,7 @@ class Node:
 	'''
 	# TODO: Add valid UTXOs in the end of transaction
 	def create_transaction(self, receiver_address, amount):
-		UTXOs = self.wallet.UTXOs
+		UTXOs = self.ring[self.wallet.public_key].UTXOs
 		transaction_inputs = []
 		transaction_outputs = []
 
@@ -84,42 +83,41 @@ class Node:
 
 		t = Transaction(self.wallet.public_key, receiver_address, amount, deepcopy(transaction_inputs))
 		
-		for id in transaction_inputs:
-			del UTXOs[id]
-
 		UTXO = Transaction_Output(receiver_address, amount, t.transaction_id)
 		transaction_outputs.append(UTXO)
-		self.ring[receiver_address].UTXOs[UTXO.transaction_id] = UTXO
 
 		if total > amount:
 			UTXO = Transaction_Output(self.wallet.public_key, total - amount, t.transaction_id)
 			transaction_outputs.append(UTXO)
-			self.wallet.UTXOs[UTXO.transaction_id] = UTXO
 
 		t.set_transaction_outputs(transaction_outputs)
 		t.sign_transaction(self.wallet.private_key)
 
-		# remember to broadcast it
-		# self.broadcast_transaction(t)
+		if self.validate_transaction(t):
+			self.commit_transaction(t)
+			self.add_transaction_to_block(t)
+			# self.broadcast_transaction(t)
 
 		return t
 
 
 	#Start mining when a block fills up
 	def mine_block(self):
+		counter = 1
 		while(True):
 			candidate_nonce = rand.getrandbits(256)
 			self.current_block.nonce = candidate_nonce
 			self.current_block.hash = self.current_block.__hash__()
 
 			if self.current_block.hash[:MINING_DIFFICULTY] == '0' * MINING_DIFFICULTY:
-				print("success")
-				self.broadcast_block(self.current_block)
+				print(f'success after {counter} tries')
 				break
+				# self.broadcast_block(self.current_block)
+				
 			
 			else:
-				print("skata")
-				print(self.current_block.hash[:MINING_DIFFICULTY])
+				counter += 1
+				# print(self.current_block.hash[:MINING_DIFFICULTY])
 
 
 
@@ -143,9 +141,7 @@ class Node:
 
 
 	def add_transaction_to_block(self, transaction):
-		if self.validate_transaction(transaction):
-			self.commit_transaction(transaction)
-			self.current_block.add_transaction(transaction)
+		self.current_block.add_transaction(transaction)
 		
 		if len(self.current_block.transactions) == BLOCK_CAPACITY:
 			self.mine_block()
@@ -154,21 +150,12 @@ class Node:
 	# If a transaction is valid, then commit it
 	def commit_transaction(self, transaction):
 		# Remove spent UTXOs
-		if transaction.sender_address == self.wallet.public_key:
-			for transaction_id in transaction.transaction_inputs:
-				del self.wallet.UTXOs[transaction_id]
-
-		else:
-			for transaction_id in transaction.transaction_inputs:
-				del self.ring[transaction.sender_address].UTXOs[transaction_id]
+		for transaction_id in transaction.transaction_inputs:
+			del self.ring[transaction.sender_address].UTXOs[transaction_id]
 
 		# Add new UTXOs
 		for UTXO in transaction.transaction_outputs:
-			if transaction.receiver_address == self.wallet.public_key:
-				self.wallet.UTXOs[UTXO.transaction_id] = UTXO
-			
-			else:
-				self.ring[transaction.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
+			self.ring[transaction.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
 
 
 	# Validation Functions
@@ -184,8 +171,7 @@ class Node:
 
 
 	def validate_user(self, public_key):
-		return public_key in self.ring or public_key == self.wallet.public_key
-
+		return public_key in self.ring
 
 	def validate_transaction(self, transaction):
 		if not self.validate_user(transaction.sender_address) or not self.validate_user(transaction.receiver_address):
@@ -203,6 +189,7 @@ class Node:
 		if in_total >= transaction.amount:
 			out_total = sum(UTXO.amount for UTXO in transaction.transaction_outputs)
 
+			# conservation of money
 			return in_total == out_total and self.validate_signature(transaction)
 
 		else:

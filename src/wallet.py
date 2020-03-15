@@ -14,13 +14,7 @@ Params:
 class Wallet:
 	def __init__(self):
 		self.public_key, self.private_key = self.keys()
-		self.UTXOs = {}
-
-	def balance(self):
-		return sum(UTXO.amount for UTXO in self.UTXOs)
-
-	def add_UTXO(self, UTXO):
-		self.UTXOs[UTXO.transaction_id] = UTXO
+		# self.UTXOs = {}
 
 	'''
 	Returns private, public key pair in PEM form
