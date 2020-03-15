@@ -53,7 +53,7 @@ class Node:
 		# add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 		# bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
 
-		self.ring[public_key] = Ring_Node(self.current_id_count, public_key, ip, port).__dict__ 
+		self.ring[public_key] = Ring_Node(self.current_id_count, public_key, ip, port) 
 		self.current_id_count += 1
 		self.broadcast.add_peer(ip, port)
 
@@ -100,7 +100,7 @@ class Node:
 		t.sign_transaction(self.wallet.private_key)
 
 		# remember to broadcast it
-		self.broadcast_transaction(t)
+		# self.broadcast_transaction(t)
 
 		return t
 
@@ -188,7 +188,7 @@ class Node:
 
 
 	def validate_transaction(self, transaction):
-		if not validate_user(transaction.sender_address) or not validate_user(transaction.receiver_address):
+		if not self.validate_user(transaction.sender_address) or not self.validate_user(transaction.receiver_address):
 			print("I don't know these people!")
 			return False
 
@@ -198,12 +198,12 @@ class Node:
 				print("Invalid UTXO!! Thief!!")
 				return False
 
-		total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
+		in_total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
 
-		if total >= transaction.amount:
-			change = sum(UTXO.amount for UTXO in transaction.transaction_output)
+		if in_total >= transaction.amount:
+			out_total = sum(UTXO.amount for UTXO in transaction.transaction_outputs)
 
-			return (total - transcation.amount == change) and self.validate_signature(transaction)
+			return in_total == out_total and self.validate_signature(transaction)
 
 		else:
 			print("Not enough money to commit the transaction")
@@ -221,7 +221,7 @@ class Node:
 
 
 	def broadcast_transaction(self, transaction):
-		self.broadcast.broadcast('receive_transaction', {'transaction': transaction})
+		self.broadcast.broadcast('receive_transaction', {'transaction': transaction.to_dict()})
 
 
 

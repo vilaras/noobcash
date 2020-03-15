@@ -73,7 +73,7 @@ def receive_transaction():
     data = request.get_json()
     transaction = data["transaction"]
 
-
+    
 
     return jsonify("Transaction accepted!"), 200
 

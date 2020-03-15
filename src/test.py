@@ -68,20 +68,23 @@ def test_validate_transaction():
     n1 = Node()
     n2 = Node()
 
-    n2.ring[n1.wallet.public_key] = Ring_Node(2, n1.wallet.public_key, 1, 1)
+    n1.register_node_to_ring(n2.wallet.public_key, 2, 2)
+    n2.register_node_to_ring(n1.wallet.public_key, 1, 1)
 
     for i in range(1, 4):
         t = Transaction_Output(n1.wallet.public_key, 100 * i, 0)
         n1.wallet.add_UTXO(t)
         n2.ring[n1.wallet.public_key].add_UTXO(t)
 
-    t = n1.create_transaction(n2.wallet.public_key, 600)
+    t = n1.create_transaction(n2.wallet.public_key, 500)
 
     if n2.validate_transaction(t):
         print("success!")
+    else:
+        print("failure")
 
 
 # test_create_transaction()
 # test_mine_block()
 # test_verify_signature()
-test_validate_transaction()
+# test_validate_transaction()

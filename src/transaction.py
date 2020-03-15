@@ -54,6 +54,16 @@ class Transaction:
     def __str__(self):
         return f'sender_address: {self.sender_address} \nreceiver_address: {self.receiver_address} \namount: {self.amount} \ntransaction_inputs: {self.transaction_inputs} \ntransaction_outputs: {self.transaction_outputs} \ntransaction_id: {self.transaction_id} \nsignature: {self.signature}'
     
+    def to_dict(self):
+        return dict(
+            sender_address = self.sender_address,
+            receiver_address = self.receiver_address,
+            amount = self.amount,
+            transaction_inputs = self.transaction_inputs,
+            transaction_outputs = [UTXO.__dict__ for UTXO in self.transaction_outputs], # I hate JSON
+            transaction_id =  self.transaction_id
+        )
+
     def set_transaction_outputs(self, transaction_outputs):
         self.transaction_outputs = transaction_outputs
 
