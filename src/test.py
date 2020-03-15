@@ -36,5 +36,22 @@ def test_transaction():
         print("failure")
 
 
+'''Creation and addition to chain'''
+def test_block():
+    n1 = Node()
+    n2 = Node()
+
+    n1.register_node_to_ring(n1.wallet.public_key, 1, 1)
+    n1.register_node_to_ring(n2.wallet.public_key, 2, 2)
+
+    n1.initialize_network()
+    for block in n1.chain:
+        print(block)
+
+    print("\n\n\n\n")
+
+    print(n1.current_block)
+
 # test_transaction()
-test_mine_block()
+# test_mine_block()
+# test_block()

@@ -33,20 +33,19 @@ Params:
 '''
 class Node:
 	def __init__(self):
-		self.NBC = 0
 		self.chain = []
 		self.current_id_count = 0
 		self.wallet = self.create_wallet()
-		self.current_block = self.create_new_block()
+		self.current_block = ''
 		self.broadcast = Broadcast()
 		self.ring = {}   #here we store information for every node, as its id, its address (ip:port) its public key, its balance and it's UTXOs 
 
+
 	def create_new_block(self):
-		# return Block(len(self.chain), self.chain[-1].hash, "kati", [])
-		return Block(1, 1, 1, [])
+		self.current_block = Block(len(self.chain), self.chain[-1].hash, [])
+
 
 	def create_wallet(self):
-		#create a wallet for this node, with a public key and a private key
 		return Wallet()
 
 	# Add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
@@ -65,7 +64,6 @@ class Node:
 	Return:	
 		create, sign and broadcast a new transaction of <amount> NBC to the address <receiver> 
 	'''
-	# TODO: Add valid UTXOs in the end of transaction
 	def create_transaction(self, receiver_address, amount):
 		UTXOs = self.ring[self.wallet.public_key].UTXOs
 		transaction_inputs = []
@@ -96,7 +94,7 @@ class Node:
 		if self.validate_transaction(t):
 			self.commit_transaction(t)
 			self.add_transaction_to_block(t)
-			# self.broadcast_transaction(t)
+			self.broadcast_transaction(t)
 
 		return t
 
@@ -106,45 +104,16 @@ class Node:
 		counter = 1
 		while(True):
 			candidate_nonce = rand.getrandbits(256)
-			self.current_block.nonce = candidate_nonce
-			self.current_block.hash = self.current_block.__hash__()
-
 			if self.current_block.hash[:MINING_DIFFICULTY] == '0' * MINING_DIFFICULTY:
 				print(f'success after {counter} tries')
+				self.current_block.setup_mined_block(candidate_nonce)
 				break
-				# self.broadcast_block(self.current_block)
-				
-			
+							
 			else:
 				counter += 1
-				# print(self.current_block.hash[:MINING_DIFFICULTY])
+				# print(self.current_block.hash[:MINING_DIFFICULTY]))
 
-
-
-	# Initialization Functions
-
-	def create_genesis_block(self):
-		t = Transaction(0, self.wallet.public_key, NUMBER_OF_NODES * 100, [])
-		t.sign_transaction(self.wallet.public_key)
-
-		return Block(0, 1, 0, [t])
-
-
-	def initialize_network(self):
-		g = self.create_genesis_block()
-		self.broadcast_block(g)
-		
-		for peer in self.ring.values():
-			t = self.create_transaction(peer['public_key'], 100)
-			self.broadcast_transaction(t)
-
-
-
-	def add_transaction_to_block(self, transaction):
-		self.current_block.add_transaction(transaction)
-		
-		if len(self.current_block.transactions) == BLOCK_CAPACITY:
-			self.mine_block()
+		self.broadcast_block(current_block)
 
 
 	# If a transaction is valid, then commit it
@@ -156,6 +125,44 @@ class Node:
 		# Add new UTXOs
 		for UTXO in transaction.transaction_outputs:
 			self.ring[transaction.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
+
+
+	def add_transaction_to_block(self, transaction):
+		self.current_block.add_transaction(transaction)
+		
+		if len(self.current_block.transactions) == BLOCK_CAPACITY:
+			self.mine_block()
+
+
+	def add_block_to_chain(self, block):
+		self.chain.append(block)
+		self.create_new_block()
+
+
+
+	# Initialization Functions
+
+	def create_genesis_block(self):
+		t = Transaction(0, self.wallet.public_key, NUMBER_OF_NODES * 100, [])
+		t.sign_transaction(self.wallet.private_key)
+
+		self.ring[self.wallet.public_key].add_UTXO(t)
+
+		g = Block(0, 1, [t])
+		g.setup_mined_block(0)
+
+		return g
+
+
+	def initialize_network(self):
+		g = self.create_genesis_block()
+		self.broadcast_block(g)
+		self.add_block_to_chain(g)
+
+		for peer in self.ring.values():
+			if peer.public_key != self.wallet.public_key:
+				t = self.create_transaction(peer.public_key, 100)
+				self.broadcast_transaction(t)
 
 
 	# Validation Functions
@@ -199,6 +206,7 @@ class Node:
 
 	def validate_block(self):
 		pass
+
 
 
 	# Broadcast functions
