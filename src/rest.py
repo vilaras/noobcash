@@ -15,7 +15,7 @@ from node import Node
 from config import *
 
 base_url = "http://"
-bootstrap_url = f'{base_url}{BOOTSTRAP_IP}:{BOOTSTRAP_PORT}'
+bootstrap_url = f'{base_url}{BOOTSTRAP}'
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 
 app = Flask(__name__)
@@ -26,13 +26,12 @@ node = None
 
 '''
 Params:
-    ip <int>: User ip
-    port <int>: User port
+    host <str>: User url
 Returns <bool>: 
     Returns if user is the bootstrap node
 '''
-def im_bootstrap(ip, my_port):
-    return f'{base_url}{ip}:{port}' == bootstrap_url
+def im_bootstrap(host):
+    return f'{base_url}{host}' == bootstrap_url
 
 
 # Send data
@@ -52,39 +51,52 @@ def create_transaction():
         return jsonify("Transaction declined"), 403
 
 
+@app.route('/show_participants', methods=['GET'])
+def show_participants():
+    # Return a list [id: public_key] for the user to see
+    ring = node.ring
+    data = [f'{ring_node.id}: {ring_node.balance}\n' for public_key, ring_node in ring.items()]
+    reply = json.dumps(''.join(data))
+
+    return reply
+    
+
 # Receive data
 #.......................................................................................
 
+@app.route('/receive_genesis_block', methods=['POST'])
+def receive_genesis_block():
+    data = request.get_json()
+    block = jsonpickle.decode(json.dumps(data["data"]))
+
+    node.add_block_to_chain(block)
+    node.commit_genesis_transaction(block.transactions[0])
+
+    return jsonify("Got it"), 200
+
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
-    print("TO TRANSACTIOOOOOOOOOOOOOOON")
     data = request.get_json()
-    transaction = data["data"]
+    transaction = jsonpickle.decode(json.dumps(data["data"]))
 
-    print(jsonpickle.decode(json.dumps(transaction)))
+    if node.validate_transaction(transaction):
+        node.commit_transaction(transaction)
+        node.add_transaction_to_block(transaction)
 
-    return jsonify("yagagro")
-    # data = request.get_json()
-    # transaction = data["transaction"]
+        return jsonify("Transaction accepted!"), 200
 
-    # if node.validate_transaction(transaction):
-    #     node.commit_transaction(transaction)
-    #     node.add_transaction_to_block(transaction)
+    else: 
+        return jsonify("Transaction declined"), 403
 
-    #     return jsonify("Transaction accepted!"), 200
-
-    # else:
-    #     return jsonify("Transaction declined"), 403
 
 @app.route('/receive_block', methods=['POST'])
 def receive_block():
-    print("TO BLOOOOOOOOOOOOCK")
     data = request.get_json()
     block = data["data"]
 
     print(jsonpickle.decode(json.dumps(block)))
 
-    return jsonify("yagrgaasgasegasego")
+    return jsonify("Got it")
     # data = request.get_json()
     # transaction = data["transaction"]
 
@@ -106,6 +118,7 @@ def client_accepted():
     ring = data["data"]
 
     node.ring = jsonpickle.decode(json.dumps(ring))
+    print("I GOT ACCEPTED!!!")
 
     return jsonify("Thanks bootstrap!"), 200 
 
@@ -116,16 +129,21 @@ def register_client():
 
     if node == None:
         # Initialize node 
-        node = Node(ip, port)
+        node = Node(f'{ip}:{port}')
 
         #Connect with the rest of the network
         try: 
             data = json.dumps({
                 "public_key": node.wallet.public_key,
-                "remote_port": port
+                "host": f'{ip}:{port}'
             })
 
-            response = requests.post(f'{bootstrap_url}/client_connect', data=data, headers=headers)
+            url = f'{bootstrap_url}/client_connect'
+            response = requests.post(url, data=data, headers=headers)
+
+            if response.status_code != 200:
+                print(f'Something went wrong with {url} request')
+
 
         except requests.exceptions.Timeout:
             return jsonify(f'connect_client: Request "{bootstrap_url}/connect_client" timed out'), 408
@@ -140,14 +158,13 @@ def register_client():
 
 @app.route('/client_connect', methods=['POST'])
 def client_connect():
-    if im_bootstrap(ip, port):
+    if im_bootstrap(f'{ip}:{port}'):
         if node.current_id_count <= NUMBER_OF_NODES:
             data = request.get_json()
             public_key = data['public_key']
-            remote_ip = request.remote_addr
-            remote_port = data['remote_port']
+            remote_host = data['host']
             
-            node.register_node_to_ring(public_key, remote_ip, remote_port) 
+            node.register_node_to_ring(public_key, remote_host) 
             
             if node.current_id_count == NUMBER_OF_NODES:
                 node.broadcast.broadcast("client_accepted", node.ring)
@@ -170,6 +187,6 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
     args = parser.parse_args()
     port = str(args.port)
-    ip = '127.0.0.1'
+    ip = f'127.0.0.1'
     
     app.run(host=ip, port=port)

@@ -1,13 +1,12 @@
 class Ring_Node:
-    def __init__(self, id, public_key, ip, port, balance = 0):
+    def __init__(self, id, public_key, host, balance = 0):
         self.id = id
         self.public_key = public_key
-        self.ip = ip
-        self.port = port
+        self.host = host 
         self.balance = balance
         self.UTXOs = {}
 
-    def set_balance(self):
+    def update_balance(self):
         self.balance = sum(UTXO.amount for UTXO in self.UTXOs.values())
 
     def add_UTXO(self, UTXO):

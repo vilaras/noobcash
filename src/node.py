@@ -32,12 +32,12 @@ Params:
 		Type <list>
 '''
 class Node:
-	def __init__(self, ip, port):
+	def __init__(self, host):
 		self.chain = []
 		self.current_id_count = 0
 		self.wallet = Wallet()
 		self.current_block = ''
-		self.broadcast = Broadcast(ip, port)
+		self.broadcast = Broadcast(host)
 		self.ring = {}   #here we store information for every node, as its id, its address (ip:port) its public key, its balance and it's UTXOs 
 
 	def create_new_block(self):
@@ -46,10 +46,10 @@ class Node:
 
 	# Add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 	# Bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
-	def register_node_to_ring(self, public_key, ip, port):
-		self.ring[public_key] = Ring_Node(self.current_id_count, public_key, ip, port) 
+	def register_node_to_ring(self, public_key, host):
+		self.ring[public_key] = Ring_Node(self.current_id_count, public_key, host) 
 		self.current_id_count += 1
-		self.broadcast.add_peer(ip, port)
+		self.broadcast.add_peer(host)
 
 	'''
 	Params:
@@ -123,9 +123,21 @@ class Node:
 		for transaction_id in transaction.transaction_inputs:
 			del self.ring[transaction.sender_address].UTXOs[transaction_id]
 
+		self.ring[transaction.sender_address].update_balance()
+
 		# Add new UTXOs
 		for UTXO in transaction.transaction_outputs:
 			self.ring[transaction.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
+
+		self.ring[transaction.receiver_address].update_balance()
+
+	# In the genesis transaction there is no sender address
+	def commit_genesis_transaction(self, transaction):
+		# Add new UTXOs
+		for UTXO in transaction.transaction_outputs:
+			self.ring[transaction.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
+
+		self.ring[transaction.receiver_address].update_balance()
 
 
 	def add_transaction_to_block(self, transaction):
@@ -146,7 +158,7 @@ class Node:
 	def create_genesis_block(self):
 		t = Transaction(0, self.wallet.public_key, NUMBER_OF_NODES * 100, [])
 		utxo = Transaction_Output(self.wallet.public_key, NUMBER_OF_NODES * 100, t.transaction_id) 
-		t.set_transaction_outputs(utxo)
+		t.set_transaction_outputs([utxo])
 
 		t.sign_transaction(self.wallet.private_key)
 
@@ -160,7 +172,7 @@ class Node:
 
 	def initialize_network(self):
 		g = self.create_genesis_block()
-		self.broadcast_block(g)
+		self.broadcast_genesis_block(g)
 		self.add_block_to_chain(g)
 
 		for peer in self.ring.values():
@@ -182,6 +194,7 @@ class Node:
 
 	def validate_user(self, public_key):
 		return public_key in self.ring
+
 
 	def validate_transaction(self, transaction):
 		if not self.validate_user(transaction.sender_address) or not self.validate_user(transaction.receiver_address):
@@ -215,9 +228,10 @@ class Node:
 	# Broadcast functions
 
 	def broadcast_block(self, block):
-		# TODO: define to_dict() function
 		self.broadcast.broadcast('receive_block', block)
 
+	def broadcast_genesis_block(self, block):
+		self.broadcast.broadcast('receive_genesis_block', block)
 
 	def broadcast_transaction(self, transaction):
 		self.broadcast.broadcast('receive_transaction', transaction)
