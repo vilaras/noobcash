@@ -72,14 +72,13 @@ class Node:
 				total += transaction.amount
 
 		if total < amount:
-			print("Se fagan oi poutanes")
-			return 
+			raise ValueError('Something went wrong')
 
 		t = Transaction(self.wallet.public_key, receiver_address, amount, deepcopy(transaction_inputs))
 
 		UTXO = Transaction_Output(receiver_address, amount, t.transaction_id)
 		transaction_outputs.append(UTXO)
-
+		
 		if total > amount:
 			UTXO = Transaction_Output(self.wallet.public_key, total - amount, t.transaction_id)
 			transaction_outputs.append(UTXO)
@@ -116,6 +115,10 @@ class Node:
 
 		self.broadcast_block(self.current_block)
 
+	def update_balances(self):
+		for ring_node in self.ring.values():
+			ring_node.update_balance()
+
 
 	# If a transaction is valid, then commit it
 	def commit_transaction(self, transaction):
@@ -123,23 +126,22 @@ class Node:
 		for transaction_id in transaction.transaction_inputs:
 			del self.ring[transaction.sender_address].UTXOs[transaction_id]
 
-		self.ring[transaction.sender_address].update_balance()
-
 		# Add new UTXOs
 		for UTXO in transaction.transaction_outputs:
-			self.ring[transaction.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
+			self.ring[UTXO.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
 
-		self.ring[transaction.receiver_address].update_balance()
+		self.update_balances()
+
 
 	# In the genesis transaction there is no sender address
 	def commit_genesis_transaction(self, transaction):
 		# Add new UTXOs
 		for UTXO in transaction.transaction_outputs:
-			self.ring[transaction.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
+			self.ring[UTXO.receiver_address].UTXOs[UTXO.transaction_id] = UTXO
 
-		self.ring[transaction.receiver_address].update_balance()
+		self.update_balances()
 
-
+	
 	def add_transaction_to_block(self, transaction):
 		self.current_block.add_transaction(transaction)
 		
@@ -152,17 +154,15 @@ class Node:
 		self.create_new_block()
 
 
-
 	# Initialization Functions
 
 	def create_genesis_block(self):
 		t = Transaction(0, self.wallet.public_key, NUMBER_OF_NODES * 100, [])
 		utxo = Transaction_Output(self.wallet.public_key, NUMBER_OF_NODES * 100, t.transaction_id) 
 		t.set_transaction_outputs([utxo])
-
 		t.sign_transaction(self.wallet.private_key)
 
-		self.ring[self.wallet.public_key].add_UTXO(utxo)
+		self.commit_genesis_transaction(t)
 
 		g = Block(0, 1, [t])
 		g.setup_mined_block(0)

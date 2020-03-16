@@ -31,7 +31,7 @@ while True:
         print("\t1.'connect' in order to initialize your wallet and conenct to the network\n")
         print("After you have connected you can:")
         print("\t2.'show participants' in order to see the other users in the network along with their public keys")
-        print("\t3.'t <recipient_address> <amount>' in order to create a new transaction.")
+        print("\t3.'t <recipient_id> <amount>' in order to create a new transaction.")
         print("\t4.'view' in order to view all transactions contained in the last validated block.")
         print("\t5.'show balance' in order to view your account balance.")
         print("\t6.'Ctrl + C' in order to exit .")
@@ -56,6 +56,7 @@ while True:
                 print(f'Something went wrong with {url} request')
 
             else:
+                print()
                 print(response.json())
 
         except requests.exceptions.Timeout:
@@ -98,7 +99,7 @@ while True:
         try:
             url = base_url + "/create_transaction"
             inputs = action.split()
-            payload = {'addr':inputs[1], 'amount':inputs[2]}
+            payload = {'id':inputs[1][-1], 'amount':inputs[2]}
             payload = json.dumps(payload)
             response = requests.post(url, data=payload, headers=headers)
 
@@ -106,8 +107,7 @@ while True:
                 print(f'Something went wrong with {url} request')
 
             else:
-                for i in response.json():
-                    print(i)
+                print(response.json())
 
         except requests.exceptions.Timeout:
             print(f'Request "{url}" timed out'), 408
@@ -117,3 +117,4 @@ while True:
 
             # else:
             #     print("It seems like you are broke..You should consider clicking --> https://www.youtube.com/watch?v=TeT0vNbjs5w")
+    

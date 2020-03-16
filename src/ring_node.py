@@ -13,4 +13,4 @@ class Ring_Node:
         self.UTXOs[UTXO.transaction_id] = UTXO
 
     def __str__(self):
-        return f'id: {self.id} \npublic_key: {self.public_key} \nip: {self.ip} \nport: {self.port} \nbalance: {self.balance} \nUTXOs: {self.UTXOs}\n'
+        return f'id: {self.id} \npublic_key: {self.public_key} \nhost: {self.host} \nbalance: {self.balance} \nUTXOs: {self.UTXOs}\n'

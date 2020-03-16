@@ -40,22 +40,26 @@ def im_bootstrap(host):
 @app.route('/create_transaction', methods=['POST'])
 def create_transaction():
     data = request.get_json()
-    address = data["addr"]
-    amount = data["amount"]
+    id = int(data["id"])
+    amount = int(data["amount"])
+
+    for ring_node in node.ring.values():
+        if ring_node.id == id:
+            address = ring_node.public_key
 
     try:
         t = node.create_transaction(address, amount)
         return jsonify("Transaction accepted!"), 200   
 
     except:
-        return jsonify("Transaction declined"), 403
+        return jsonify(f'Something went wrong with your transaction'), 403
 
 
 @app.route('/show_participants', methods=['GET'])
 def show_participants():
     # Return a list [id: public_key] for the user to see
     ring = node.ring
-    data = [f'{ring_node.id}: {ring_node.balance}\n' for public_key, ring_node in ring.items()]
+    data = [f'id{ring_node.id}: {ring_node.balance} NBC\n' for public_key, ring_node in ring.items()]
     reply = json.dumps(''.join(data))
 
     return reply
@@ -118,7 +122,6 @@ def client_accepted():
     ring = data["data"]
 
     node.ring = jsonpickle.decode(json.dumps(ring))
-    print("I GOT ACCEPTED!!!")
 
     return jsonify("Thanks bootstrap!"), 200 
 
