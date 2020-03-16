@@ -5,17 +5,14 @@ from transaction_output import Transaction_Output
 from node import Node
 from ring_node import Ring_Node
 
-
-'''Test block mining'''
-def test_mine_block():
-    n = Node()
-    n.mine_block()    
+# Util imports
+import jsonpickle   
 
 
 '''Creation and validation'''
 def test_transaction():
-    n1 = Node()
-    n2 = Node()
+    n1 = Node('127.0.0.1', '5000')
+    n2 = Node('127.0.0.1', '5001')
 
     n1.register_node_to_ring(n1.wallet.public_key, 1, 1)
     n1.register_node_to_ring(n2.wallet.public_key, 2, 2)
@@ -38,8 +35,8 @@ def test_transaction():
 
 '''Creation and addition to chain'''
 def test_block():
-    n1 = Node()
-    n2 = Node()
+    n1 = Node('127.0.0.1', '5000')
+    n2 = Node('127.0.0.1', '5001')
 
     n1.register_node_to_ring(n1.wallet.public_key, 1, 1)
     n1.register_node_to_ring(n2.wallet.public_key, 2, 2)
@@ -52,6 +49,40 @@ def test_block():
 
     print(n1.current_block)
 
+
+'''Test block mining'''
+def test_mine_block():
+    n = Node('127.0.0.1', '5000')
+    
+    n.register_node_to_ring(n.wallet.public_key, "127.0.0.1", '5000') 
+    n.initialize_network()
+
+    import numpy
+
+    res = []
+    for i in range(1000):
+        res.append(n.mine_block())
+
+    # Mean ~ 16^MINING_DIFFICULTY!!
+    print(numpy.mean(res))
+
+
+def test_initialization():
+    n = Node('127.0.0.1', '5000')
+    n2 = Node('127.0.0.1', '5001')
+
+    n.register_node_to_ring(n.wallet.public_key, "127.0.0.1", '5000') 
+    n.register_node_to_ring(n2.wallet.public_key, "127.0.0.1", '5001') 
+    
+    n.initialize_network()
+
+    print(n.chain[0])
+    print("\n\n\n")
+    print(n.current_block)
+
+
+
 # test_transaction()
 # test_mine_block()
 # test_block()
+# test_initialization()

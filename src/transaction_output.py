@@ -2,6 +2,7 @@
 from Crypto.Hash import SHA256
 
 # Util imports
+import jsonpickle
 import json
 
 '''
@@ -18,18 +19,10 @@ class Transaction_Output:
         self.receiver_address = receiver_address
         self.amount = amount
         self.previous_transaction_id = previous_transaction_id
-        self.transaction_id = self.__hash__()
+        self.transaction_id = self.__hash__().hexdigest()
     
     def __hash__(self):
-        return SHA256.new(
-            json.dumps(
-                dict(
-                    receiver_address = self.receiver_address,
-                    amount = self.amount,
-                    previous_transaction_id = self.previous_transaction_id
-                )
-            ).encode()
-        ).hexdigest()
+        return SHA256.new(jsonpickle.encode(self).encode())
 
     def __str__(self):
         return f'receiver_address: {self.receiver_address}\namount: {self.amount}\nprevious_transaction_id: {self.previous_transaction_id}\ntransaction_id: {self.transaction_id}'

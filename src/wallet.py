@@ -14,7 +14,6 @@ Params:
 class Wallet:
 	def __init__(self):
 		self.public_key, self.private_key = self.keys()
-		# self.UTXOs = {}
 
 	'''
 	Returns private, public key pair in PEM form

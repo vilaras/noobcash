@@ -63,9 +63,10 @@ while True:
         inputs = action.split()
         payload = {'addr':inputs[1], 'amount':inputs[2]}
         payload = json.dumps(payload)
-        response = requests.post(url, data = payload, headers = headers)
+        response = requests.post(url, data=payload, headers=headers)
 
         if response.json()['message'] != 'Not enough':
             print(response.json()['message'])
+
         else:
             print("It seems like you are broke..You should consider clicking --> https://www.youtube.com/watch?v=TeT0vNbjs5w")

@@ -5,6 +5,7 @@ from flask_cors import CORS
 # Util imports
 import requests
 import json
+import jsonpickle
 import sys
 
 # Class imports
@@ -23,7 +24,6 @@ CORS(app)
 # User Node 
 node = None
 
-
 '''
 Params:
     ip <int>: User ip
@@ -38,31 +38,18 @@ def im_bootstrap(ip, my_port):
 # Send data
 #.......................................................................................
 
-# get all transactions in the blockchain
-# @app.route('/view_transactions', methods=['GET'])
-# def view_transactions():
-#     transactions = blockchain.transactions
+@app.route('/create_transaction', methods=['POST'])
+def create_transaction():
+    data = request.get_json()
+    address = data["addr"]
+    amount = data["amount"]
 
-#     response = {'transactions': transactions}
+    try:
+        t = node.create_transaction(address, amount)
+        return jsonify("Transaction accepted!"), 200   
 
-#     return jsonify(response), 200
-
-# get all transactions in the blockchain
-# @app.route('/show balance', methods=['GET'])
-# def view_transactions():
-#     transactions = blockchain.transactions
-
-#     response = {'transactions': transactions}
-#     return jsonify(response), 200
-
-
-# @app.route('/show balance', methods=['GET'])
-# def view_transactions():
-#     transactions = blockchain.transactions
-
-#     response = {'transactions': transactions}
-#     return jsonify(response), 200
-
+    except:
+        return jsonify("Transaction declined"), 403
 
 
 # Receive data
@@ -70,16 +57,58 @@ def im_bootstrap(ip, my_port):
 
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
+    print("TO TRANSACTIOOOOOOOOOOOOOOON")
     data = request.get_json()
-    transaction = data["transaction"]
+    transaction = data["data"]
 
-    
+    print(jsonpickle.decode(json.dumps(transaction)))
 
-    return jsonify("Transaction accepted!"), 200
+    return jsonify("yagagro")
+    # data = request.get_json()
+    # transaction = data["transaction"]
 
+    # if node.validate_transaction(transaction):
+    #     node.commit_transaction(transaction)
+    #     node.add_transaction_to_block(transaction)
+
+    #     return jsonify("Transaction accepted!"), 200
+
+    # else:
+    #     return jsonify("Transaction declined"), 403
+
+@app.route('/receive_block', methods=['POST'])
+def receive_block():
+    print("TO BLOOOOOOOOOOOOCK")
+    data = request.get_json()
+    block = data["data"]
+
+    print(jsonpickle.decode(json.dumps(block)))
+
+    return jsonify("yagrgaasgasegasego")
+    # data = request.get_json()
+    # transaction = data["transaction"]
+
+    # if node.validate_transaction(transaction):
+    #     node.commit_transaction(transaction)
+    #     node.add_transaction_to_block(transaction)
+
+    #     return jsonify("Transaction accepted!"), 200
+
+    # else:
+    #     return jsonify("Transaction declined"), 403
 
 # Connect
 #.......................................................................................
+
+@app.route('/client_accepted', methods=['POST'])
+def client_accepted():
+    data = request.get_json()
+    ring = data["data"]
+
+    node.ring = jsonpickle.decode(json.dumps(ring))
+
+    return jsonify("Thanks bootstrap!"), 200 
+
 
 @app.route('/register_client', methods=['POST'])
 def register_client():
@@ -87,12 +116,12 @@ def register_client():
 
     if node == None:
         # Initialize node 
-        node = Node()
+        node = Node(ip, port)
 
         #Connect with the rest of the network
         try: 
             data = json.dumps({
-                "public_key": str(node.wallet.public_key.exportKey('PEM')),
+                "public_key": node.wallet.public_key,
                 "remote_port": port
             })
 
@@ -109,16 +138,6 @@ def register_client():
         return jsonify("You have already connected!"), 400
 
 
-@app.route('/client_accepted', methods=['POST'])
-def client_accepted():
-    data = request.get_json()
-    ring = data["ring"]
-    
-    node.ring = ring
-
-    return jsonify("Thanks bootstrap!"), 200 
-
-
 @app.route('/client_connect', methods=['POST'])
 def client_connect():
     if im_bootstrap(ip, port):
@@ -130,9 +149,8 @@ def client_connect():
             
             node.register_node_to_ring(public_key, remote_ip, remote_port) 
             
-
             if node.current_id_count == NUMBER_OF_NODES:
-                node.broadcast.broadcast("client_accepted", {"ring": node.ring})
+                node.broadcast.broadcast("client_accepted", node.ring)
                 node.initialize_network()
 
 

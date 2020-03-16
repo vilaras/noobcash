@@ -5,6 +5,7 @@ from Crypto.Signature import PKCS1_v1_5
 
 # Util imports
 import json
+import jsonpickle
 import binascii
 
 '''
@@ -31,38 +32,21 @@ class Transaction:
         self.amount = amount
         self.transaction_inputs = transaction_inputs
         self.transaction_outputs = []
-        self.hash = self.__hash__()
-        self.transaction_id = self.hash.hexdigest()
+        self.signature = 42
+        self.transaction_id = self.__hash__().hexdigest()
 
     def __hash__(self):
-        self.hash = SHA256.new(
-            json.dumps(
-                dict(
-                    sender_address = self.sender_address,
-                    receiver_address = self.receiver_address,
-                    amount = self.amount,
-                    transactions_in_count = len(self.transaction_inputs),
-                    transaction_inputs = self.transaction_inputs,
-                    transactions_out_count = len(self.transaction_outputs),
-                    transaction_outputs = [tx.__dict__ for tx in self.transaction_outputs]
-                )
-            ).encode()
-        )
-
-        return self.hash
+        temp = self.signature
+        self.signature = 42
         
+        ret = SHA256.new(jsonpickle.encode(self).encode())
+        self.signature = temp
+
+        return ret
+
+    # TODO: Write it in a better way
     def __str__(self):
         return f'sender_address: {self.sender_address} \nreceiver_address: {self.receiver_address} \namount: {self.amount} \ntransaction_inputs: {self.transaction_inputs} \ntransaction_outputs: {self.transaction_outputs} \ntransaction_id: {self.transaction_id} \nsignature: {self.signature}'
-    
-    def to_dict(self):
-        return dict(
-            sender_address = self.sender_address,
-            receiver_address = self.receiver_address,
-            amount = self.amount,
-            transaction_inputs = self.transaction_inputs,
-            transaction_outputs = [UTXO.__dict__ for UTXO in self.transaction_outputs], # I hate JSON
-            transaction_id =  self.transaction_id
-        )
 
     def set_transaction_outputs(self, transaction_outputs):
         self.transaction_outputs = transaction_outputs
@@ -71,11 +55,9 @@ class Transaction:
     Sign transaction with private key
     """
     def sign_transaction(self, private_key):
-        h = self.hash
+        h = self.__hash__()
 
         private_key = RSA.importKey(private_key)
         signer = PKCS1_v1_5.new(private_key)
 
         self.signature = signer.sign(h)
-
-

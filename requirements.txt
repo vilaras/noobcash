@@ -15,3 +15,4 @@ shellescape==3.8.1
 six==1.14.0
 urllib3==1.25.8
 Werkzeug==1.0.0
+jsonpickle==1.3

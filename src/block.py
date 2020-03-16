@@ -3,6 +3,7 @@ from Crypto.Hash import SHA256
 
 # Util imports
 import datetime
+import jsonpickle
 import json
 
 
@@ -29,16 +30,7 @@ class Block:
 		self.hash = -1
 	
 	def __hash__(self):
-		return SHA256.new(
-			json.dumps(
-				dict(
-					transactions = [tx.to_dict() for tx in self.transactions],
-					previous_hash = self.previous_hash,
-					nonce = self.nonce
-				)
-			).encode()
-		).hexdigest()
-		
+		return SHA256.new(jsonpickle.encode(self).encode())
 
 	def __str__(self):
 		tx_str = '['
@@ -51,5 +43,13 @@ class Block:
 
 	def setup_mined_block(self, nonce):
 		self.nonce = nonce
-		self.hash = self.__hash__()
+		self.hash = self.__hash__().hexdigest()
 		self.timestamp = str(datetime.datetime.now())
+
+	def try_nonce(self, nonce):
+		self.nonce = nonce
+		self.hash = -1
+		self.hash = self.__hash__().hexdigest()
+
+	def add_transaction(self, transaction):
+		self.transactions.append(transaction)
