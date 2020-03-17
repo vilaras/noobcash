@@ -3,7 +3,7 @@ import jsonpickle
 import json 
 
 class Broadcast:
-    def __init__(self, host, base_url = "http://", headers =  {'Content-type': 'application/json', 'Accept': 'text/plain'}):
+    def __init__(self, host, base_url = "http://", headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}):
         self.host = host
         self.base_url = base_url
         self.headers = headers

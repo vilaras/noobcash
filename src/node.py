@@ -46,8 +46,13 @@ class Node:
 
 	# Add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
 	# Bootstrap node informs all other nodes and gives the request node an id and 100 NBCs
-	def register_node_to_ring(self, public_key, host):
-		self.ring[public_key] = Ring_Node(self.current_id_count, public_key, host) 
+	def register_node_to_ring(self, public_key, host, id=None):
+		if id == None:
+			self.ring[public_key] = Ring_Node(self.current_id_count, public_key, host) 
+		
+		else:
+			self.ring[public_key] = Ring_Node(id, public_key, host) 
+
 		self.current_id_count += 1
 		self.broadcast.add_peer(host)
 
@@ -96,24 +101,6 @@ class Node:
 		else:
 			raise ValueError('Something went wrong')
 		
-
-
-	#Start mining when a block fills up
-	def mine_block(self):
-		counter = 1
-		while(True):
-			candidate_nonce = rand.getrandbits(256)
-			self.current_block.try_nonce(candidate_nonce)
-			if self.current_block.hash[:MINING_DIFFICULTY] == '0' * MINING_DIFFICULTY:
-				# print(f'success after {counter} tries')
-				return counter
-				break
-							
-			else:
-				counter += 1
-				# print(self.current_block.hash[:MINING_DIFFICULTY]))
-
-		self.broadcast_block(self.current_block)
 
 	def update_balances(self):
 		for ring_node in self.ring.values():
@@ -220,8 +207,8 @@ class Node:
 			return False
 
 
-	def validate_block(self):
-		pass
+	def validate_block(self, block):
+		return block.previous_hash == self.chain[-1].hash and block.hash == block.__hash__()
 
 
 
@@ -236,6 +223,25 @@ class Node:
 	def broadcast_transaction(self, transaction):
 		self.broadcast.broadcast('receive_transaction', transaction)
 
+
+	# Mining
+
+	def mine_block(self):
+		print("I started mining! Hurry!")
+		counter = 1 # For statistics
+		while(True):
+			candidate_nonce = rand.getrandbits(256)
+			self.current_block.try_nonce(candidate_nonce)
+			if self.current_block.hash[:MINING_DIFFICULTY] == '0' * MINING_DIFFICULTY:
+				print(f'success after {counter} tries')
+				break
+				# return counter
+							
+			else:
+				counter += 1
+				# print(self.current_block.hash[:MINING_DIFFICULTY]))
+
+		self.broadcast_block(self.current_block)
 
 
 	# Concensus functions

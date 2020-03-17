@@ -36,13 +36,14 @@ class Transaction:
         self.transaction_id = self.__hash__().hexdigest()
 
     def __hash__(self):
+        # In order to not include the signature in hash calculation
+        # Please find a better way to do this
         temp = self.signature
         self.signature = 42
-        
-        ret = SHA256.new(jsonpickle.encode(self).encode())
+        h = SHA256.new(jsonpickle.encode(self).encode())
         self.signature = temp
 
-        return ret
+        return h
 
     # TODO: Write it in a better way
     def __str__(self):

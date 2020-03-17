@@ -55,7 +55,7 @@ def create_transaction():
         return jsonify(f'Something went wrong with your transaction'), 403
 
 
-@app.route('/show_participants', methods=['GET'])
+@app.route('/balance', methods=['GET'])
 def show_participants():
     # Return a list [id: public_key] for the user to see
     ring = node.ring
@@ -78,6 +78,21 @@ def receive_genesis_block():
 
     return jsonify("Got it"), 200
 
+
+@app.route('/receive_block', methods=['POST'])
+def receive_block():
+    data = request.get_json()
+    block = jsonpickle.decode(json.dumps(data["data"]))
+
+    if node.validate_block(block):
+        node.add_block_to_chain(block)
+
+        return jsonify("Block accepted!"), 200
+
+    else: 
+        return jsonify("Block declined"), 403 
+
+
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
     data = request.get_json()
@@ -87,31 +102,14 @@ def receive_transaction():
         node.commit_transaction(transaction)
         node.add_transaction_to_block(transaction)
 
+        print(len(node.current_block.transactions))
+
         return jsonify("Transaction accepted!"), 200
 
     else: 
         return jsonify("Transaction declined"), 403
 
 
-@app.route('/receive_block', methods=['POST'])
-def receive_block():
-    data = request.get_json()
-    block = data["data"]
-
-    print(jsonpickle.decode(json.dumps(block)))
-
-    return jsonify("Got it")
-    # data = request.get_json()
-    # transaction = data["transaction"]
-
-    # if node.validate_transaction(transaction):
-    #     node.commit_transaction(transaction)
-    #     node.add_transaction_to_block(transaction)
-
-    #     return jsonify("Transaction accepted!"), 200
-
-    # else:
-    #     return jsonify("Transaction declined"), 403
 
 # Connect
 #.......................................................................................
@@ -119,9 +117,10 @@ def receive_block():
 @app.route('/client_accepted', methods=['POST'])
 def client_accepted():
     data = request.get_json()
-    ring = data["data"]
+    ring = jsonpickle.decode(json.dumps(data["data"]))
 
-    node.ring = jsonpickle.decode(json.dumps(ring))
+    for public_key, ring_node in ring.items():
+        node.register_node_to_ring(public_key, ring_node.host, ring_node.id)
 
     return jsonify("Thanks bootstrap!"), 200 
 
@@ -190,6 +189,6 @@ if __name__ == '__main__':
     parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
     args = parser.parse_args()
     port = str(args.port)
-    ip = f'127.0.0.1'
+    ip = '127.0.0.1'
     
     app.run(host=ip, port=port)

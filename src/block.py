@@ -30,7 +30,14 @@ class Block:
 		self.hash = -1
 	
 	def __hash__(self):
-		return SHA256.new(jsonpickle.encode(self).encode())
+		# In order to not include the hash attribute in hash calculation
+        # Please find a better way to do this
+		temp = self.hash
+		self.hash = -1
+		h = SHA256.new(jsonpickle.encode(self).encode())
+		self.hash = temp
+
+		return h
 
 	def __str__(self):
 		tx_str = '['
@@ -48,7 +55,6 @@ class Block:
 
 	def try_nonce(self, nonce):
 		self.nonce = nonce
-		self.hash = -1
 		self.hash = self.__hash__().hexdigest()
 
 	def add_transaction(self, transaction):

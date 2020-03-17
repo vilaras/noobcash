@@ -20,44 +20,49 @@ port = sys.argv[1]
 base_url = f'http://127.0.0.1:{port}'
 headers = {'Content-type': 'application/json', 'Accept': 'text/pl11ain'}
 
-print("Hello, I am the blockchain cli.How can I help?")
+help_message = '''
+Usage: 
+
+$ python3 client.py IP PORT             Start your client 
+$ python3 rest.py IP PORT               Start your server
+
+Available commands:
+    * 'connect'                         Initialize your wallet and conenct to the network
+
+After you have connected you can:
+    * `balance`                         Show the IDs of every user along with their balance
+    * `t <recipient_id> <amount>`       Send `amount` NBC to `recepient_id`
+    * `view`                            in order to view all transactions contained in the last validated block 
+    * `Ctrl + C`                        in order to exit
+'''
+
+print("Hello, I am the blockchain cli. How can I help?")
 
 while True:
-    print('Please select an action..press help for available actions!')
-    action = input()
+    # print('Please select an action. Press help for available actions!')
+    action = input("> ")
    
     if action == 'help':    
-        print("There are six available actions listed below")
-        print("\t1.'connect' in order to initialize your wallet and conenct to the network\n")
-        print("After you have connected you can:")
-        print("\t2.'show participants' in order to see the other users in the network along with their public keys")
-        print("\t3.'t <recipient_id> <amount>' in order to create a new transaction.")
-        print("\t4.'view' in order to view all transactions contained in the last validated block.")
-        print("\t5.'show balance' in order to view your account balance.")
-        print("\t6.'Ctrl + C' in order to exit .")
+        print(help_message)
 
     elif action == 'connect':
         try:
             url = f'{base_url}/register_client'
             response = requests.post(url)
 
-            print("You have connected successfully!")
+            print(response.json())
+
 
         except requests.exceptions.Timeout:
             print(f'something went wrong, please try again')
 
 
-    elif action == "show participants":
+    elif action == "balance":
         try:
-            url = base_url + '/show_participants'
+            url = base_url + '/balance'
             response = requests.get(url)
 
-            if response.status_code != 200:
-                print(f'Something went wrong with {url} request')
-
-            else:
-                print()
-                print(response.json())
+            print(response.json())
 
         except requests.exceptions.Timeout:
             print(f'Request "{url}" timed out'), 408
@@ -118,3 +123,5 @@ while True:
             # else:
             #     print("It seems like you are broke..You should consider clicking --> https://www.youtube.com/watch?v=TeT0vNbjs5w")
     
+    else:
+        print(f'{action}: Unknown command. See `help`')
