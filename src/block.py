@@ -50,8 +50,8 @@ class Block:
 
 	def setup_mined_block(self, nonce):
 		self.nonce = nonce
-		self.hash = self.__hash__().hexdigest()
 		self.timestamp = str(datetime.datetime.now())
+		self.hash = self.__hash__().hexdigest()
 
 	def try_nonce(self, nonce):
 		self.nonce = nonce

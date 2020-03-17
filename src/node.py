@@ -16,7 +16,7 @@ from config import *
 
 # Util imports
 from copy import deepcopy
-
+import threading
 
 '''
 Params:
@@ -33,15 +33,25 @@ Params:
 '''
 class Node:
 	def __init__(self, host):
-		self.chain = []
+		self.blockchain = []
 		self.current_id_count = 0
 		self.wallet = Wallet()
 		self.current_block = ''
 		self.broadcast = Broadcast(host)
-		self.ring = {}   #here we store information for every node, as its id, its address (ip:port) its public key, its balance and it's UTXOs 
+		
+		# Here we store information for every node, as its id, its address (ip:port) 
+		# its public key, its balance and it's UTXOs 
+		self.ring = {}   
+
+		self.mining_thread = threading.Thread(target=self.mine_block)
+		self.thread_lock = threading.Lock()
+		
+		# This ensures the thread will die when the main thread dies
+		self.mining_thread.daemon = True
+
 
 	def create_new_block(self):
-		self.current_block = Block(len(self.chain), self.chain[-1].hash, [])
+		self.current_block = Block(len(self.blockchain), self.blockchain[-1].hash, [])
 
 
 	# Add this node to the ring, only the bootstrap node can add a node to the ring after checking his wallet and ip:port address
@@ -132,12 +142,23 @@ class Node:
 	def add_transaction_to_block(self, transaction):
 		self.current_block.add_transaction(transaction)
 		
-		if len(self.current_block.transactions) == BLOCK_CAPACITY:
-			self.mine_block()
+		print("I ADDED A TRANSACTION TO BLOCK -> ", len(self.current_block.transactions))
+		if len(self.current_block.transactions) == BLOCK_CAPACITY:			
+			# A parameter ensuring the thread will stop running 
+			# after we receive a block from the network
+			self.mining_thread.keep_running = True
 
+			self.mining_thread.start()
+			self.mining_thread.join()
+
+			# The mining ended, broadcast the mined block
+			self.broadcast_block(self.current_block)
 
 	def add_block_to_chain(self, block):
-		self.chain.append(block)
+		# We have aquired a new block, either by the network or by us
+		# either way we need to stop the mining thread 
+		self.mining_thread.keep_running = False  
+		self.blockchain.append(block)
 		self.create_new_block()
 
 
@@ -159,6 +180,7 @@ class Node:
 
 	def initialize_network(self):
 		g = self.create_genesis_block()
+		print(g.hash)
 		self.broadcast_genesis_block(g)
 		self.add_block_to_chain(g)
 
@@ -208,7 +230,7 @@ class Node:
 
 
 	def validate_block(self, block):
-		return block.previous_hash == self.chain[-1].hash and block.hash == block.__hash__()
+		return block.previous_hash == self.blockchain[-1].hash and block.hash == block.__hash__().hexdigest()
 
 
 
@@ -227,21 +249,25 @@ class Node:
 	# Mining
 
 	def mine_block(self):
-		print("I started mining! Hurry!")
-		counter = 1 # For statistics
-		while(True):
-			candidate_nonce = rand.getrandbits(256)
-			self.current_block.try_nonce(candidate_nonce)
-			if self.current_block.hash[:MINING_DIFFICULTY] == '0' * MINING_DIFFICULTY:
-				print(f'success after {counter} tries')
-				break
-				# return counter
-							
-			else:
-				counter += 1
-				# print(self.current_block.hash[:MINING_DIFFICULTY]))
+		print("Im just outside of mining")
+		print(self.thread_lock)
+		with self.thread_lock:
+			counter = 1 # For statistics
+			thread = threading.currentThread()
+			print("I started mining! Hurry!")
+			while(getattr(thread, "keep_running", True)):
+				candidate_nonce = rand.getrandbits(256)
+				self.current_block.try_nonce(candidate_nonce)
+				if self.current_block.hash[:MINING_DIFFICULTY] == '0'*MINING_DIFFICULTY:
+					self.current_block.setup_mined_block(candidate_nonce)
+					print(f'success after {counter} tries')
+					return 
+								
+				else:
+					counter += 1
+					# print(self.current_block.hash[:MINING_DIFFICULTY]))
 
-		self.broadcast_block(self.current_block)
+		
 
 
 	# Concensus functions

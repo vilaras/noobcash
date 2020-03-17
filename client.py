@@ -23,17 +23,17 @@ headers = {'Content-type': 'application/json', 'Accept': 'text/pl11ain'}
 help_message = '''
 Usage: 
 
-$ python3 client.py IP PORT             Start your client 
-$ python3 rest.py IP PORT               Start your server
+$ python3 rest.py -p PORT               Start your server
+$ python3 client.py PORT                Start your client 
 
 Available commands:
     * 'connect'                         Initialize your wallet and conenct to the network
 
 After you have connected you can:
-    * `balance`                         Show the IDs of every user along with their balance
     * `t <recipient_id> <amount>`       Send `amount` NBC to `recepient_id`
+    * `balance`                         Show the IDs of every user along with their balance
     * `view`                            in order to view all transactions contained in the last validated block 
-    * `Ctrl + C`                        in order to exit
+    * `exit`                            in order to exit
 '''
 
 print("Hello, I am the blockchain cli. How can I help?")
@@ -44,6 +44,10 @@ while True:
    
     if action == 'help':    
         print(help_message)
+
+    elif action == 'exit':
+        print('\n\nBye Bye !')
+        sys.exit(0)
 
     elif action == 'connect':
         try:

@@ -102,8 +102,6 @@ def receive_transaction():
         node.commit_transaction(transaction)
         node.add_transaction_to_block(transaction)
 
-        print(len(node.current_block.transactions))
-
         return jsonify("Transaction accepted!"), 200
 
     else: 
