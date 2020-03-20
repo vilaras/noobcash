@@ -7,6 +7,7 @@ import requests
 import json
 import jsonpickle
 import sys
+import asyncio
 
 # Class imports
 from node import Node
@@ -32,6 +33,18 @@ Returns <bool>:
 '''
 def im_bootstrap(host):
     return f'{base_url}{host}' == bootstrap_url
+
+
+# An endpoint to test concurrency
+@app.route('/test_endpoint', methods=['POST'])
+def test_endpoint():
+    print("Test endpoint!")
+    counter = 0
+    for i in range(10000000000):
+        counter += 1
+
+    print(f'current_id_count -> {node.current_id_count}')
+    print("I got the request and I am executing code!!")
 
 
 # Send data
@@ -95,12 +108,18 @@ def receive_block():
 
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
+    print("IN ENDPOINT AFTER I ACCEPTED A TX, NUMBER OF TX IN CURRENT BLOCK BEFORE NEW -> ", len(node.current_block.transactions))
     data = request.get_json()
     transaction = jsonpickle.decode(json.dumps(data["data"]))
 
+    print("IN ENDPOINT BEFORE TX VALIDATION")
     if node.validate_transaction(transaction):
+        print("IN ENDPOINT RIGHT AFTER TX VALIDATION")
         node.commit_transaction(transaction)
+        print("IN ENDPOINT AFTER COMMIT TX")
         node.add_transaction_to_block(transaction)
+        print("IN ENDPOINT AFTER ADD TX TO BLOCK")
+        
 
         return jsonify("Transaction accepted!"), 200
 
@@ -137,15 +156,13 @@ def register_client():
                 "public_key": node.wallet.public_key,
                 "host": f'{ip}:{port}'
             })
-
             url = f'{bootstrap_url}/client_connect'
             response = requests.post(url, data=data, headers=headers)
 
             if response.status_code != 200:
                 print(f'Something went wrong with {url} request')
 
-
-        except requests.exceptions.Timeout:
+        except:
             return jsonify(f'connect_client: Request "{bootstrap_url}/connect_client" timed out'), 408
 
 
@@ -167,7 +184,7 @@ def client_connect():
             node.register_node_to_ring(public_key, remote_host) 
             
             if node.current_id_count == NUMBER_OF_NODES:
-                node.broadcast.broadcast("client_accepted", node.ring)
+                asyncio.run(node.broadcast.broadcast("client_accepted", node.ring))
                 node.initialize_network()
 
 
@@ -184,9 +201,10 @@ if __name__ == '__main__':
     from argparse import ArgumentParser
 
     parser = ArgumentParser()
-    parser.add_argument('-p', '--port', default=5000, type=int, help='port to listen on')
+    parser.add_argument('-i', '--ip', default='127.0.0.1', type=str, help='ip to listen on')
+    parser.add_argument('-p', '--port', default='5000', type=str, help='port to listen on')
     args = parser.parse_args()
-    port = str(args.port)
-    ip = '127.0.0.1'
+    port = args.port
+    ip = args.ip
     
-    app.run(host=ip, port=port)
+    app.run(host=ip, port=port, threaded=True)

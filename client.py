@@ -12,19 +12,21 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGINT, signal_handler)
 
 # user should provide rest api's ports
-if len(sys.argv) != 2:
-    print("Usage is 'python3 cli.py PORT'")
+if len(sys.argv) != 3:
+    print("Usage is 'python3 cli.py IP PORT'")
     sys.exit(0)
 
-port = sys.argv[1]
-base_url = f'http://127.0.0.1:{port}'
+
+ip = sys.argv[1]
+port = sys.argv[2]
+base_url = f'http://{ip}:{port}'
 headers = {'Content-type': 'application/json', 'Accept': 'text/pl11ain'}
 
 help_message = '''
 Usage: 
 
-$ python3 rest.py -p PORT               Start your server
-$ python3 client.py PORT                Start your client 
+$ python3 rest.py -i IP -p PORT         Start your server
+$ python3 client.py IP PORT             Start your client 
 
 Available commands:
     * 'connect'                         Initialize your wallet and conenct to the network
@@ -32,22 +34,23 @@ Available commands:
 After you have connected you can:
     * `t <recipient_id> <amount>`       Send `amount` NBC to `recepient_id`
     * `balance`                         Show the IDs of every user along with their balance
-    * `view`                            in order to view all transactions contained in the last validated block 
-    * `exit`                            in order to exit
+    * `view`                            View all transactions contained in the last validated block 
+    * `exit`                            Exit the client
 '''
 
 print("Hello, I am the blockchain cli. How can I help?")
 
 while True:
-    # print('Please select an action. Press help for available actions!')
     action = input("> ")
    
     if action == 'help':    
         print(help_message)
 
+
     elif action == 'exit':
         print('\n\nBye Bye !')
         sys.exit(0)
+
 
     elif action == 'connect':
         try:
@@ -56,9 +59,8 @@ while True:
 
             print(response.json())
 
-
-        except requests.exceptions.Timeout:
-            print(f'something went wrong, please try again')
+        except:
+            print(f'Something went wrong in "{url}" request')
 
 
     elif action == "balance":
@@ -68,8 +70,8 @@ while True:
 
             print(response.json())
 
-        except requests.exceptions.Timeout:
-            print(f'Request "{url}" timed out'), 408
+        except:
+            print(f'Something went wrong in "{url}" request')
 
     elif action == 'view' or action == 'v':
         try:
@@ -84,11 +86,11 @@ while True:
                 for i in response.json():
                     print(i)
 
-        except requests.exceptions.Timeout:
-            print(f'Request "{url}" timed out'), 408
+        except:
+            print(f'Something went wrong in "{url}" request')
 
 
-    elif action == 'show balance' or action == 's' or action == 'balance':
+    elif action == 'balance':
         try:
             url = base_url + "/show_balance"
             response = requests.get(url)
@@ -101,10 +103,10 @@ while True:
                 for i in response.json():
                     print(i)
 
-        except requests.exceptions.Timeout:
-            print(f'Request "{url}" timed out'), 408
+        except:
+            print(f'Something went wrong in "{url}" request')
 
-    elif action[0] == 't':
+    elif action.startswith('t'):
         try:
             url = base_url + "/create_transaction"
             inputs = action.split()
@@ -118,8 +120,8 @@ while True:
             else:
                 print(response.json())
 
-        except requests.exceptions.Timeout:
-            print(f'Request "{url}" timed out'), 408
+        except:
+            print(f'Something went wrong in "{url}" request')
 
             # if response.json()['message'] != 'Not enough':
             #     print(response.json()['message'])

@@ -16,6 +16,7 @@ from config import *
 
 # Util imports
 from copy import deepcopy
+import asyncio
 import threading
 
 '''
@@ -103,13 +104,13 @@ class Node:
 
 		if self.validate_transaction(t):
 			self.commit_transaction(t)
+			self.broadcast_transaction(t) 
 			self.add_transaction_to_block(t)
-			self.broadcast_transaction(t)
 
 			return t
 
 		else:
-			raise ValueError('Something went wrong')
+			raise ValueError('Something went wrong in create transaction')
 		
 
 	def update_balances(self):
@@ -180,7 +181,6 @@ class Node:
 
 	def initialize_network(self):
 		g = self.create_genesis_block()
-		print(g.hash)
 		self.broadcast_genesis_block(g)
 		self.add_block_to_chain(g)
 
@@ -237,13 +237,13 @@ class Node:
 	# Broadcast functions
 
 	def broadcast_block(self, block):
-		self.broadcast.broadcast('receive_block', block)
+		asyncio.run(self.broadcast.broadcast('receive_block', block))
 
 	def broadcast_genesis_block(self, block):
-		self.broadcast.broadcast('receive_genesis_block', block)
+		asyncio.run(self.broadcast.broadcast('receive_genesis_block', block))
 
 	def broadcast_transaction(self, transaction):
-		self.broadcast.broadcast('receive_transaction', transaction)
+		asyncio.run(self.broadcast.broadcast('receive_transaction', transaction))
 
 
 	# Mining
@@ -258,14 +258,16 @@ class Node:
 			while(getattr(thread, "keep_running", True)):
 				candidate_nonce = rand.getrandbits(256)
 				self.current_block.try_nonce(candidate_nonce)
+				
 				if self.current_block.hash[:MINING_DIFFICULTY] == '0'*MINING_DIFFICULTY:
 					self.current_block.setup_mined_block(candidate_nonce)
 					print(f'success after {counter} tries')
+
 					return 
-								
-				else:
-					counter += 1
-					# print(self.current_block.hash[:MINING_DIFFICULTY]))
+							
+			else:
+				counter += 1
+				# print(self.current_block.hash[:MINING_DIFFICULTY]))
 
 		
 

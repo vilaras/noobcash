@@ -71,8 +71,8 @@ def test_initialization():
     n = Node('127.0.0.1', '5000')
     n2 = Node('127.0.0.1', '5001')
 
-    n.register_node_to_ring(n.wallet.public_key, "127.0.0.1", '5000') 
-    n.register_node_to_ring(n2.wallet.public_key, "127.0.0.1", '5001') 
+    n.register_node_to_ring(n.wallet.public_key, '127.0.0.1', '5000') 
+    n.register_node_to_ring(n2.wallet.public_key, '127.0.0.1', '5001') 
     
     n.initialize_network()
 
@@ -81,8 +81,20 @@ def test_initialization():
     print(n.current_block)
 
 
+def test_request():
+    import requests
+    from transaction import Transaction
+
+    payload = Transaction(1, 1, 1, [])
+    url = 'http://127.0.0.1:5000/test_endpoint'
+    headerss = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    response = requests.post(url, data=jsonpickle.encode({"data": payload}), headers=headerss)
+
+
 
 # test_transaction()
 # test_mine_block()
 # test_block()
 # test_initialization()
+# test_request()
+

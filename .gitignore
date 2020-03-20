@@ -2,3 +2,4 @@
 src/__pycache__*
 .vscode*
 commands.txt
+update_host.sh
