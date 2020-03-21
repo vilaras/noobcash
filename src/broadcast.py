@@ -5,10 +5,10 @@ import aiohttp
 from aiohttp import ClientSession
 
 class Broadcast:
-    def __init__(self, host, base_url = "http://", headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}):
+    def __init__(self, host):
         self.host = host
-        self.base_url = base_url
-        self.headers = headers
+        self.base_url = "http://"
+        self.headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
         self.peers = []
 
     def add_peer(self, host):
@@ -33,21 +33,9 @@ class Broadcast:
 
 
             await asyncio.gather(*tasks)
-                # except:
-                #     print(f'Request "{url}" failed')
-
-                # finally:
-                #     for response in rs: 
-                #         if response.status_code != 200:
-                #             print(f'Something went wrong with {response.url} request')
-
-                #     #Reset the session
-                #     self.session = AsyncSession(n=len(self.peers))
-
+            
     async def post(self, url, session, payload):
-        json_payoad = jsonpickle.encode({"data": payload})
-        async with session.post(url, data=json_payoad, headers=self.headers) as resp:
-            if resp.status != 200:
-                print(f'Something went wrong with {url} request')
-
+        payload = jsonpickle.encode({"data": payload})
+        async with session.post(url, data=payload, headers=self.headers) as resp:
+            assert resp.status == 200
             return resp

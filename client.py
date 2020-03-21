@@ -41,7 +41,7 @@ After you have connected you can:
 print("Hello, I am the blockchain cli. How can I help?")
 
 while True:
-    action = input("> ")
+    action = input("> ").strip()
    
     if action == 'help':    
         print(help_message)
@@ -73,7 +73,8 @@ while True:
         except:
             print(f'Something went wrong in "{url}" request')
 
-    elif action == 'view' or action == 'v':
+
+    elif action == 'view':
         try:
             url = base_url + "/view_transactions"
             print("Printing the transactions from the last validated block in the blockchain")
@@ -123,11 +124,6 @@ while True:
         except:
             print(f'Something went wrong in "{url}" request')
 
-            # if response.json()['message'] != 'Not enough':
-            #     print(response.json()['message'])
-
-            # else:
-            #     print("It seems like you are broke..You should consider clicking --> https://www.youtube.com/watch?v=TeT0vNbjs5w")
     
     else:
         print(f'{action}: Unknown command. See `help`')

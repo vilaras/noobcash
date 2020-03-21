@@ -8,6 +8,8 @@ import json
 import jsonpickle
 import sys
 import asyncio
+import os
+import signal
 
 # Class imports
 from node import Node
@@ -56,17 +58,46 @@ def create_transaction():
     id = int(data["id"])
     amount = int(data["amount"])
 
-    for ring_node in node.ring.values():
-        if ring_node.id == id:
-            address = ring_node.public_key
-
     try:
+        for ring_node in node.ring.values():
+            if ring_node.id == id:
+                address = ring_node.public_key
+
         t = node.create_transaction(address, amount)
-        return jsonify("Transaction accepted!"), 200   
 
-    except:
-        return jsonify(f'Something went wrong with your transaction'), 403
+    except Exception as e:
+        return jsonify(f'Exception while creating transaction {e.__class__.__name__}: {e}'), 403
 
+
+    return jsonify("Transaction accepted!"), 200   
+
+
+@app.route('/found_block', methods=['POST'])
+def found_block():
+    data = request.get_json()
+    block = jsonpickle.decode(json.dumps(data["data"]))
+
+    # Kill the miner process
+    try:
+        if node.miner_pid != -1:
+            # print('Killing the miner process', node.miner_pid)
+            os.kill(node.miner_pid, signal.SIGTERM)
+            node.miner_pid = -1
+        
+        else:
+            # We are trying a miner process that doesn't exist
+            # or we didn't handle the miner correctly
+            print("Miner already killed, what are you trying to do")
+
+    except Exception as e:
+        return jsonify(f'Exception while killing miner in /found_block {e.__class__.__name__}: {e}'), 403
+
+    # Add to chain and broadcast the block
+    node.add_block_to_chain(block)
+    node.broadcast_block(block)
+
+    # This is sent back to miner process which should be killed by now 
+    return jsonify("This should never execute but whatever..."), 200
 
 @app.route('/balance', methods=['GET'])
 def show_participants():
@@ -75,7 +106,7 @@ def show_participants():
     data = [f'id{ring_node.id}: {ring_node.balance} NBC\n' for public_key, ring_node in ring.items()]
     reply = json.dumps(''.join(data))
 
-    return reply
+    return reply, 200
     
 
 # Receive data
@@ -86,8 +117,12 @@ def receive_genesis_block():
     data = request.get_json()
     block = jsonpickle.decode(json.dumps(data["data"]))
 
-    node.add_block_to_chain(block)
-    node.commit_genesis_transaction(block.transactions[0])
+    try:
+        node.add_block_to_chain(block)
+        node.commit_genesis_transaction(block.transactions[0])
+
+    except Exception as e:
+        return jsonify(f'Exception while receiving genesis block {e.__class__.__name__}: {e}'), 403
 
     return jsonify("Got it"), 200
 
@@ -100,6 +135,22 @@ def receive_block():
     if node.validate_block(block):
         node.add_block_to_chain(block)
 
+        # Kill the miner process, we lost the race...
+        try:
+            if node.miner_pid != -1:
+                print('Killing the miner process', node.miner_pid)
+                os.kill(node.miner_pid, signal.SIGTERM)
+                node.miner_pid = -1
+            
+            else:
+                # We are trying a miner process that doesn't exist
+                # or we didn't handle the miner correctly
+                print("Miner already killed, what are you trying to do")
+                
+        except Exception as e:
+            return jsonify(f'Exception while killing miner in /receive_block: {e.__class__.__name__}: {e}'), 403
+
+
         return jsonify("Block accepted!"), 200
 
     else: 
@@ -108,24 +159,22 @@ def receive_block():
 
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
-    print("IN ENDPOINT AFTER I ACCEPTED A TX, NUMBER OF TX IN CURRENT BLOCK BEFORE NEW -> ", len(node.current_block.transactions))
     data = request.get_json()
     transaction = jsonpickle.decode(json.dumps(data["data"]))
 
-    print("IN ENDPOINT BEFORE TX VALIDATION")
-    if node.validate_transaction(transaction):
-        print("IN ENDPOINT RIGHT AFTER TX VALIDATION")
-        node.commit_transaction(transaction)
-        print("IN ENDPOINT AFTER COMMIT TX")
-        node.add_transaction_to_block(transaction)
-        print("IN ENDPOINT AFTER ADD TX TO BLOCK")
-        
+    try:
+        if node.validate_transaction(transaction):
+            node.commit_transaction(transaction)
+            node.add_transaction_to_block(transaction)
+            
+        else: 
+            return jsonify("Transaction declined"), 403
 
-        return jsonify("Transaction accepted!"), 200
+    except Exception as e:
+        return jsonify(f'Exception while receiving transaction {e.__class__.__name__}: {e}'), 403
 
-    else: 
-        return jsonify("Transaction declined"), 403
 
+    return jsonify("Transaction accepted!"), 200
 
 
 # Connect
@@ -162,7 +211,7 @@ def register_client():
             if response.status_code != 200:
                 print(f'Something went wrong with {url} request')
 
-        except:
+        except Exception as e:
             return jsonify(f'connect_client: Request "{bootstrap_url}/connect_client" timed out'), 408
 
 

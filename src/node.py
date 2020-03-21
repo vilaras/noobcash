@@ -1,5 +1,4 @@
 # Cryptographic imports
-import Crypto.Random.random as rand
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
@@ -15,9 +14,11 @@ from broadcast import Broadcast
 from config import *
 
 # Util imports
+import jsonpickle
 from copy import deepcopy
+from subprocess import Popen
 import asyncio
-import threading
+
 
 '''
 Params:
@@ -36,6 +37,7 @@ class Node:
 	def __init__(self, host):
 		self.blockchain = []
 		self.current_id_count = 0
+		self.host = host
 		self.wallet = Wallet()
 		self.current_block = ''
 		self.broadcast = Broadcast(host)
@@ -44,11 +46,9 @@ class Node:
 		# its public key, its balance and it's UTXOs 
 		self.ring = {}   
 
-		self.mining_thread = threading.Thread(target=self.mine_block)
-		self.thread_lock = threading.Lock()
-		
-		# This ensures the thread will die when the main thread dies
-		self.mining_thread.daemon = True
+		# The miner subprocess PID
+		# If it is -1 the subprocess is not running
+		self.miner_pid = -1
 
 
 	def create_new_block(self):
@@ -81,7 +81,7 @@ class Node:
 		transaction_inputs = []
 		transaction_outputs = []
 
-		total = 0 
+		total = 0
 		for id, transaction in UTXOs.items(): 	
 			if total < amount:
 				transaction_inputs.append(id)
@@ -104,8 +104,8 @@ class Node:
 
 		if self.validate_transaction(t):
 			self.commit_transaction(t)
-			self.broadcast_transaction(t) 
 			self.add_transaction_to_block(t)
+			self.broadcast_transaction(t) 
 
 			return t
 
@@ -143,22 +143,29 @@ class Node:
 	def add_transaction_to_block(self, transaction):
 		self.current_block.add_transaction(transaction)
 		
-		print("I ADDED A TRANSACTION TO BLOCK -> ", len(self.current_block.transactions))
 		if len(self.current_block.transactions) == BLOCK_CAPACITY:			
-			# A parameter ensuring the thread will stop running 
-			# after we receive a block from the network
-			self.mining_thread.keep_running = True
+			if self.miner_pid == -1:
+				try:
+					print('Starting miner')
+					proc = Popen(['python3', 'miner.py', self.host, jsonpickle.encode({"data": self.current_block})])
+					self.miner_pid = proc.pid
 
-			self.mining_thread.start()
-			self.mining_thread.join()
+				except Exception as e:
+					print(f'miner.start: {e.__class__.__name__}: {e}')
 
-			# The mining ended, broadcast the mined block
-			self.broadcast_block(self.current_block)
+			else:
+				# If we reach this point we already run a miner process
+				# and we want to start another one (?)
+				# or we didn't clear up over the last one
+				print("Miner already running! Why start another one")
+
+
+			# We probably need to do this in the /found_block endpoint
+			# self.add_block_to_chain(self.current_block)
+			# self.broadcast_block(self.current_block)
 
 	def add_block_to_chain(self, block):
 		# We have aquired a new block, either by the network or by us
-		# either way we need to stop the mining thread 
-		self.mining_thread.keep_running = False  
 		self.blockchain.append(block)
 		self.create_new_block()
 
@@ -174,13 +181,13 @@ class Node:
 		self.commit_genesis_transaction(t)
 
 		g = Block(0, 1, [t])
-		g.setup_mined_block(0)
 
 		return g
 
 
 	def initialize_network(self):
 		g = self.create_genesis_block()
+		g.setup_mined_block(0)
 		self.broadcast_genesis_block(g)
 		self.add_block_to_chain(g)
 
@@ -244,32 +251,6 @@ class Node:
 
 	def broadcast_transaction(self, transaction):
 		asyncio.run(self.broadcast.broadcast('receive_transaction', transaction))
-
-
-	# Mining
-
-	def mine_block(self):
-		print("Im just outside of mining")
-		print(self.thread_lock)
-		with self.thread_lock:
-			counter = 1 # For statistics
-			thread = threading.currentThread()
-			print("I started mining! Hurry!")
-			while(getattr(thread, "keep_running", True)):
-				candidate_nonce = rand.getrandbits(256)
-				self.current_block.try_nonce(candidate_nonce)
-				
-				if self.current_block.hash[:MINING_DIFFICULTY] == '0'*MINING_DIFFICULTY:
-					self.current_block.setup_mined_block(candidate_nonce)
-					print(f'success after {counter} tries')
-
-					return 
-							
-			else:
-				counter += 1
-				# print(self.current_block.hash[:MINING_DIFFICULTY]))
-
-		
 
 
 	# Concensus functions
