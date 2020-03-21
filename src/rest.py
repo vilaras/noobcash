@@ -66,10 +66,10 @@ def create_transaction():
         t = node.create_transaction(address, amount)
 
     except Exception as e:
-        return jsonify(f'Exception while creating transaction {e.__class__.__name__}: {e}'), 403
+        return jsonify(f'Exception while creating transaction {e.__class__.__name__}: {e}\n'), 403
 
 
-    return jsonify("Transaction accepted!"), 200   
+    return jsonify("Transaction accepted!\n"), 200   
 
 
 @app.route('/found_block', methods=['POST'])
@@ -90,24 +90,42 @@ def found_block():
             print("Miner already killed, what are you trying to do")
 
     except Exception as e:
-        return jsonify(f'Exception while killing miner in /found_block {e.__class__.__name__}: {e}'), 403
+        return jsonify(f'Exception while killing miner in /found_block {e.__class__.__name__}: {e}\n'), 403
 
     # Add to chain and broadcast the block
     node.add_block_to_chain(block)
     node.broadcast_block(block)
 
     # This is sent back to miner process which should be killed by now 
-    return jsonify("This should never execute but whatever..."), 200
+    return jsonify("This should never execute but whatever...\n"), 200
+
 
 @app.route('/balance', methods=['GET'])
 def show_participants():
     # Return a list [id: public_key] for the user to see
-    ring = node.ring
-    data = [f'id{ring_node.id}: {ring_node.balance} NBC\n' for public_key, ring_node in ring.items()]
-    reply = json.dumps(''.join(data))
+    reply = []
+    for public_key, ring_node in node.ring.items():
+        reply.append(f'id{ring_node.id}: {ring_node.balance} NBC\n')
+
+    reply = json.dumps(''.join(reply))
 
     return reply, 200
     
+
+@app.route('/view_transactions', methods=['GET'])
+def view_transactions():
+    if len(node.blockchain) == 1:
+        return json.dumps(f'id0 -> id0 {NUMBER_OF_NODES * 100} NBC\n'), 200
+
+    transactions = node.blockchain[-1].transactions
+    reply = []
+    for transaction in transactions:
+        reply.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
+    
+    reply = json.dumps(''.join(reply))
+
+    return reply, 200
+
 
 # Receive data
 #.......................................................................................
@@ -122,9 +140,9 @@ def receive_genesis_block():
         node.commit_genesis_transaction(block.transactions[0])
 
     except Exception as e:
-        return jsonify(f'Exception while receiving genesis block {e.__class__.__name__}: {e}'), 403
+        return jsonify(f'Exception while receiving genesis block {e.__class__.__name__}: {e}\n'), 403
 
-    return jsonify("Got it"), 200
+    return jsonify("Got it\n"), 200
 
 
 @app.route('/receive_block', methods=['POST'])
@@ -148,13 +166,13 @@ def receive_block():
                 print("Miner already killed, what are you trying to do")
                 
         except Exception as e:
-            return jsonify(f'Exception while killing miner in /receive_block: {e.__class__.__name__}: {e}'), 403
+            return jsonify(f'Exception while killing miner in /receive_block: {e.__class__.__name__}: {e}\n'), 403
 
 
-        return jsonify("Block accepted!"), 200
+        return jsonify("Block accepted!\n"), 200
 
     else: 
-        return jsonify("Block declined"), 403 
+        return jsonify("Block declined\n"), 403 
 
 
 @app.route('/receive_transaction', methods=['POST'])
@@ -168,13 +186,14 @@ def receive_transaction():
             node.add_transaction_to_block(transaction)
             
         else: 
-            return jsonify("Transaction declined"), 403
+            return jsonify("Transaction declined\n"), 403
 
     except Exception as e:
-        return jsonify(f'Exception while receiving transaction {e.__class__.__name__}: {e}'), 403
+        return jsonify(f'Exception while receiving transaction {e.__class__.__name__}: {e}\n'), 403
 
 
-    return jsonify("Transaction accepted!"), 200
+    return jsonify("Transaction accepted!\n"), 200
+
 
 
 # Connect
@@ -188,7 +207,7 @@ def client_accepted():
     for public_key, ring_node in ring.items():
         node.register_node_to_ring(public_key, ring_node.host, ring_node.id)
 
-    return jsonify("Thanks bootstrap!"), 200 
+    return jsonify("Thanks bootstrap!\n"), 200 
 
 
 @app.route('/register_client', methods=['POST'])
@@ -212,14 +231,13 @@ def register_client():
                 print(f'Something went wrong with {url} request')
 
         except Exception as e:
-            return jsonify(f'connect_client: Request "{bootstrap_url}/connect_client" timed out'), 408
+            return jsonify(f'Exception while registering client {e.__class__.__name__}: {e}\n'), 403
 
-
-        return jsonify("You have connected successfully!"), 200
+        return jsonify("You have connected successfully!\n"), 200
 
     else: 
         # Bad request
-        return jsonify("You have already connected!"), 400
+        return jsonify("You have already connected!\n"), 400
 
 
 @app.route('/client_connect', methods=['POST'])
@@ -237,11 +255,11 @@ def client_connect():
                 node.initialize_network()
 
 
-            return jsonify("Welcome to our noobcash network!"), 200
+            return jsonify("Welcome to our noobcash network!\n"), 200
 
         else:  
             # Forbidden action
-            return jsonify("Sorry, we are full..."), 403
+            return jsonify("Sorry, we are full...\n"), 403
 
         
 

@@ -1,3 +1,4 @@
+# Util imports
 import sys
 import json
 import requests
@@ -65,10 +66,14 @@ while True:
 
     elif action == "balance":
         try:
-            url = base_url + '/balance'
+            url = f'{base_url}/balance'
             response = requests.get(url)
 
-            print(response.json())
+            if response.status_code != 200:
+                print(f'Something went wrong with {url} request')
+
+            else:
+                print(response.json())
 
         except:
             print(f'Something went wrong in "{url}" request')
@@ -76,43 +81,24 @@ while True:
 
     elif action == 'view':
         try:
-            url = base_url + "/view_transactions"
-            print("Printing the transactions from the last validated block in the blockchain")
+            url = f'{base_url}/view_transactions'
             response = requests.get(url)
 
             if response.status_code != 200:
                 print(f'Something went wrong with {url} request')
 
             else:
-                for i in response.json():
-                    print(i)
+                print(response.json())
 
         except:
             print(f'Something went wrong in "{url}" request')
 
-
-    elif action == 'balance':
-        try:
-            url = base_url + "/show_balance"
-            response = requests.get(url)
-            print("Your current balance is " + str(response.json()['Balance']) + " coins !")
-
-            if response.status_code != 200:
-                print(f'Something went wrong with {url} request')
-
-            else:
-                for i in response.json():
-                    print(i)
-
-        except:
-            print(f'Something went wrong in "{url}" request')
 
     elif action.startswith('t'):
         try:
-            url = base_url + "/create_transaction"
+            url = f'{base_url}/create_transaction'
             inputs = action.split()
-            payload = {'id':inputs[1][-1], 'amount':inputs[2]}
-            payload = json.dumps(payload)
+            payload = json.dumps({'id':inputs[1][-1], 'amount':inputs[2]})
             response = requests.post(url, data=payload, headers=headers)
 
             if response.status_code != 200:
