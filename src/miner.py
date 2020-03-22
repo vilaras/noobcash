@@ -33,7 +33,7 @@ class Miner:
 
 	# Exit gracefully
 	def handler(self, sig, frame):
-		print(f'The parent process terminates us, we were sent a signal {sig}')
+		# print(f'The parent process terminates us, we were sent a signal {sig}')
 		sys.exit(0)	
 
 
@@ -41,7 +41,7 @@ class Miner:
 		counter = 1 # For statistics
 		print("I started mining! Hurry!")
 		while(True):
-			candidate_nonce = rand.getrandbits(256)
+			candidate_nonce = rand.getrandbits(32)
 			self.current_block.try_nonce(candidate_nonce)
 			
 			if self.current_block.hash.startswith('0' * MINING_DIFFICULTY):

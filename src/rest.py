@@ -36,19 +36,6 @@ Returns <bool>:
 def im_bootstrap(host):
     return f'{base_url}{host}' == bootstrap_url
 
-
-# An endpoint to test concurrency
-@app.route('/test_endpoint', methods=['POST'])
-def test_endpoint():
-    print("Test endpoint!")
-    counter = 0
-    for i in range(10000000000):
-        counter += 1
-
-    print(f'current_id_count -> {node.current_id_count}')
-    print("I got the request and I am executing code!!")
-
-
 # Send data
 #.......................................................................................
 
@@ -63,6 +50,8 @@ def create_transaction():
             if ring_node.id == id:
                 address = ring_node.public_key
 
+        # TODO: Use the return valure to showcase more
+        #       meaningful messages
         t = node.create_transaction(address, amount)
 
     except Exception as e:
@@ -98,6 +87,11 @@ def found_block():
 
     # This is sent back to miner process which should be killed by now 
     return jsonify("This should never execute but whatever...\n"), 200
+
+
+@app.route('/get_blockchain', methods=['GET'])
+def get_blockchain():
+    return jsonpickle.encode({"data": node.blockchain})
 
 
 @app.route('/balance', methods=['GET'])
@@ -150,7 +144,7 @@ def receive_block():
     data = request.get_json()
     block = jsonpickle.decode(json.dumps(data["data"]))
 
-    if node.validate_block(block):
+    if node.validate_block(block, node.blockchain[-1]):
         node.add_block_to_chain(block)
 
         # Kill the miner process, we lost the race...
@@ -251,7 +245,7 @@ def client_connect():
             node.register_node_to_ring(public_key, remote_host) 
             
             if node.current_id_count == NUMBER_OF_NODES:
-                asyncio.run(node.broadcast.broadcast("client_accepted", node.ring))
+                asyncio.run(node.broadcast.broadcast("client_accepted", node.ring, 'POST'))
                 node.initialize_network()
 
 

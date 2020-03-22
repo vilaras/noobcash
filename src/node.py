@@ -146,7 +146,6 @@ class Node:
 		if len(self.current_block.transactions) == BLOCK_CAPACITY:			
 			if self.miner_pid == -1:
 				try:
-					print('Starting miner')
 					proc = Popen(['python3', 'miner.py', self.host, jsonpickle.encode({"data": self.current_block})])
 					self.miner_pid = proc.pid
 
@@ -213,8 +212,23 @@ class Node:
 
 
 	def validate_transaction(self, transaction):
-		if not self.validate_user(transaction.sender_address) or not self.validate_user(transaction.receiver_address):
-			print("I don't know these people!")
+		if not self.validate_user(transaction.sender_address):
+			print("I don't know the sender!")
+			return False
+
+		if not self.validate_user(transaction.receiver_address):
+			print("I don't know the receiver!")
+			return False
+
+		# If we allow a user to send transactions to himself he could flood the
+		# network with these transactions and prevent the other transactions from
+		# finding a place into blocks, thus adding a delay to the network
+		if transaction.sender_address == transaction.receiver_address:
+			print("You can't send money to yourself!")
+			return False
+
+		if transaction.amount <= 0:
+			print("You actually need to send some money")
 			return False
 
 		UTXOs = self.ring[transaction.sender_address].UTXOs
@@ -224,6 +238,9 @@ class Node:
 				return False
 
 		in_total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
+		if in_total < transaction.amount:
+			print("Not enough money to commit the transaction")
+			return False
 
 		if in_total >= transaction.amount:
 			out_total = sum(UTXO.amount for UTXO in transaction.transaction_outputs)
@@ -231,37 +248,54 @@ class Node:
 			# conservation of money
 			return in_total == out_total and self.validate_signature(transaction)
 
-		else:
-			print("Not enough money to commit the transaction")
-			return False
 
 
-	def validate_block(self, block):
-		return block.previous_hash == self.blockchain[-1].hash and block.hash == block.__hash__().hexdigest()
-
+	def validate_block(self, block, previous_block):
+		return block.previous_hash == previous_block.hash and block.hash == block.__hash__().hexdigest()		
 
 
 	# Broadcast functions
 
 	def broadcast_block(self, block):
-		asyncio.run(self.broadcast.broadcast('receive_block', block))
+		asyncio.run(self.broadcast.broadcast('receive_block', block, 'POST'))
 
 	def broadcast_genesis_block(self, block):
-		asyncio.run(self.broadcast.broadcast('receive_genesis_block', block))
+		asyncio.run(self.broadcast.broadcast('receive_genesis_block', block, 'POST'))
 
 	def broadcast_transaction(self, transaction):
-		asyncio.run(self.broadcast.broadcast('receive_transaction', transaction))
+		asyncio.run(self.broadcast.broadcast('receive_transaction', transaction, 'POST'))
 
 
 	# Concensus functions
 
 	def valid_chain(self, chain):
-		pass
-		#check for the longer chain accroose all nodes
+		# A blockchain only with the genesis block is valid
+		if len(chain) == 1:
+			return True
+		
+		previous_block = chain[0]
+		for block in chain[1:]:
+			if not self.validate_block(block, previous_block):
+				return False
+			
+			previous_block = block
+
+		return True
 
 
+	# Asks each user for it's blockchain and keeps the longest valid one 
 	def resolve_conflicts(self):
-		pass
-		#resolve correct chain
+		responses = asyncio.run(self.broadcast.broadcast('get_blockchain', 'GET'))
+		blockchains = map()
+		
+		# Decode the response data into python objects 
+		blockchains = map(jsonpickle.decode, responses)
+		blockchains.append(self.blockchain)
+		
+		# Filter out all the non valid blockchains
+		valid_blockchains = filter(valid_chain, blockchains)
+		
+		# accept the longest chain 
+		self.blockchain = max(valid_blockchains, key=len)
 
 

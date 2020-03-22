@@ -47,11 +47,9 @@ while True:
     if action == 'help':    
         print(help_message)
 
-
     elif action == 'exit':
-        print('\n\nBye Bye !')
+        print('\nBye Bye !')
         sys.exit(0)
-
 
     elif action == 'connect':
         try:
@@ -62,7 +60,6 @@ while True:
 
         except:
             print(f'Something went wrong in "{url}" request')
-
 
     elif action == "balance":
         try:
@@ -78,7 +75,6 @@ while True:
         except:
             print(f'Something went wrong in "{url}" request')
 
-
     elif action == 'view':
         try:
             url = f'{base_url}/view_transactions'
@@ -92,7 +88,6 @@ while True:
 
         except:
             print(f'Something went wrong in "{url}" request')
-
 
     elif action.startswith('t'):
         try:
@@ -110,6 +105,5 @@ while True:
         except:
             print(f'Something went wrong in "{url}" request')
 
-    
     else:
         print(f'{action}: Unknown command. See `help`')
