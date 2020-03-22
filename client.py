@@ -36,6 +36,7 @@ After you have connected you can:
     * `t <recipient_id> <amount>`       Send `amount` NBC to `recepient_id`
     * `balance`                         Show the IDs of every user along with their balance
     * `view`                            View all transactions contained in the last validated block 
+    * `view all`                        View all the validated transactions in the network
     * `exit`                            Exit the client
 '''
 
@@ -59,7 +60,7 @@ while True:
             print(response.json())
 
         except:
-            print(f'Something went wrong in "{url}" request')
+            print(f'Something went wrong in "{url}" request\n')
 
     elif action == "balance":
         try:
@@ -73,7 +74,7 @@ while True:
                 print(response.json())
 
         except:
-            print(f'Something went wrong in "{url}" request')
+            print(f'Something went wrong in "{url}" request\n')
 
     elif action == 'view':
         try:
@@ -87,7 +88,21 @@ while True:
                 print(response.json())
 
         except:
-            print(f'Something went wrong in "{url}" request')
+            print(f'Something went wrong in "{url}" request\n')
+
+    elif action == 'view all':
+        try:
+            url = f'{base_url}/view_all_transactions'
+            response = requests.get(url)
+
+            if response.status_code != 200:
+                print(f'Something went wrong with {url} request')
+
+            else:
+                print(response.json())
+
+        except:
+            print(f'Something went wrong in "{url}" request\n')
 
     elif action.startswith('t'):
         try:
@@ -103,7 +118,7 @@ while True:
                 print(response.json())
 
         except:
-            print(f'Something went wrong in "{url}" request')
+            print(f'Something went wrong in "{url}" request\n')
 
     else:
-        print(f'{action}: Unknown command. See `help`')
+        print(f'{action}: Unknown command. See `help`\n')

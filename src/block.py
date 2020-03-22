@@ -32,10 +32,10 @@ class Block:
 	def __hash__(self):
 		# In order to not include the hash attribute in hash calculation
         # Please find a better way to do this
-		temp = self.hash
-		self.hash = -1
+		temp_hash, temp_timestamp = self.hash, self.timestamp
+		self.hash, self.timestamp = -1, ''
 		h = SHA256.new(jsonpickle.encode(self).encode())
-		self.hash = temp
+		self.hash, self.timestamp = temp_hash, temp_timestamp
 
 		return h
 
@@ -50,8 +50,8 @@ class Block:
 
 	def setup_mined_block(self, nonce):
 		self.nonce = nonce
-		self.timestamp = str(datetime.datetime.now())
 		self.hash = self.__hash__().hexdigest()
+		self.timestamp = str(datetime.datetime.now())
 
 	def try_nonce(self, nonce):
 		self.nonce = nonce

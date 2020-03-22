@@ -251,8 +251,27 @@ class Node:
 
 
 	def validate_block(self, block, previous_block):
-		return block.previous_hash == previous_block.hash and block.hash == block.__hash__().hexdigest()		
+		if len(block.transactions) != BLOCK_CAPACITY:
+			print("Invalid block capacity")
+			return 'error'
 
+		if block.hash != block.__hash__().hexdigest():
+			print("Invalid hash!")
+			return 'error'
+
+		if not block.hash.startswith('0' * MINING_DIFFICULTY):
+			print("Invalid nonce!")
+			return 'error'
+
+		if block.previous_hash == previous_block.hash:
+			# Everything seems ok
+			return 'ok'
+
+		else:
+			# The block is valid but the chaining is faulty, 
+			# we probably have a fork
+			return 'consensus'
+			
 
 	# Broadcast functions
 
@@ -275,7 +294,7 @@ class Node:
 		
 		previous_block = chain[0]
 		for block in chain[1:]:
-			if not self.validate_block(block, previous_block):
+			if self.validate_block(block, previous_block) != 'ok':
 				return False
 			
 			previous_block = block

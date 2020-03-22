@@ -36,6 +36,7 @@ Returns <bool>:
 def im_bootstrap(host):
     return f'{base_url}{host}' == bootstrap_url
 
+
 # Send data
 #.......................................................................................
 
@@ -50,8 +51,6 @@ def create_transaction():
             if ring_node.id == id:
                 address = ring_node.public_key
 
-        # TODO: Use the return valure to showcase more
-        #       meaningful messages
         t = node.create_transaction(address, amount)
 
     except Exception as e:
@@ -69,7 +68,7 @@ def found_block():
     # Kill the miner process
     try:
         if node.miner_pid != -1:
-            # print('Killing the miner process', node.miner_pid)
+            print('Killing the miner process', node.miner_pid)
             os.kill(node.miner_pid, signal.SIGTERM)
             node.miner_pid = -1
         
@@ -120,6 +119,20 @@ def view_transactions():
 
     return reply, 200
 
+@app.route('/view_all_transactions', methods=['GET'])
+def view_all_transactions():
+    reply = [f'id0 -> id0 {NUMBER_OF_NODES * 100} NBC\n']
+
+    for block in node.blockchain[1:]:
+        for transaction in block.transactions:
+            reply.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
+
+    for transaction in node.current_block.transactions:
+        reply.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
+
+    reply = json.dumps(''.join(reply))
+
+    return reply, 200
 
 # Receive data
 #.......................................................................................
@@ -144,13 +157,14 @@ def receive_block():
     data = request.get_json()
     block = jsonpickle.decode(json.dumps(data["data"]))
 
-    if node.validate_block(block, node.blockchain[-1]):
+    res = node.validate_block(block, node.blockchain[-1])
+    if res == 'ok':
         node.add_block_to_chain(block)
 
         # Kill the miner process, we lost the race...
         try:
             if node.miner_pid != -1:
-                print('Killing the miner process', node.miner_pid)
+                # print('Killing the miner process', node.miner_pid)
                 os.kill(node.miner_pid, signal.SIGTERM)
                 node.miner_pid = -1
             
@@ -165,6 +179,11 @@ def receive_block():
 
         return jsonify("Block accepted!\n"), 200
 
+    elif res == 'consensus':
+        node.resolve_conflicts()
+
+        return jsonify("Had to run consensus but all ok now...")
+
     else: 
         return jsonify("Block declined\n"), 403 
 
@@ -172,7 +191,12 @@ def receive_block():
 @app.route('/receive_transaction', methods=['POST'])
 def receive_transaction():
     data = request.get_json()
-    transaction = jsonpickle.decode(json.dumps(data["data"]))
+    transaction = jsonpickle.decode(json.dumps(data['data']))
+    remote_port = data['port']
+    remote_host = f'{request.remote_addr}:{remote_port}'
+
+    if remote_host != node.ring[transaction.sender_address].host:
+        return jsonify("You sent me a transaction that wasn't yours!"), 403
 
     try:
         if node.validate_transaction(transaction):

@@ -41,10 +41,10 @@ class Broadcast:
 
 
     async def post(self, url, session, payload):
-        payload = jsonpickle.encode({"data": payload})
+        payload = jsonpickle.encode({"data": payload, "port": self.host.split(':')[-1]})
         async with session.post(url, data=payload, headers=self.headers) as resp:
             if resp.status != 200:
-                raise Exception(f'Expected status code 200, but got {resp.status_code}')
+                raise Exception(f'Expected status code 200, but got {resp.status}')
             
             return resp
 
@@ -52,6 +52,6 @@ class Broadcast:
     async def get(self, url, session):
         async with session.get(url, headers=self.headers) as resp:
             if resp.status != 200:
-                raise Exception(f'Expected status code 200, but got {resp.status_code}')
+                raise Exception(f'Expected status code 200, but got {resp.status}')
             
             return json.dumps(json.loads(resp)['data'])
