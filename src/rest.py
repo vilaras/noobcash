@@ -107,6 +107,9 @@ def show_participants():
 
 @app.route('/view_transactions', methods=['GET'])
 def view_transactions():
+    if len(node.blockchain) == 0:
+        return json.dumps(f'No transactions yet\n'), 200
+
     if len(node.blockchain) == 1:
         return json.dumps(f'id0 -> id0 {NUMBER_OF_NODES * 100} NBC\n'), 200
 
@@ -121,6 +124,9 @@ def view_transactions():
 
 @app.route('/view_all_transactions', methods=['GET'])
 def view_all_transactions():
+    if len(node.blockchain) == 0:
+        return json.dumps(f'No transactions yet\n'), 200
+
     reply = [f'id0 -> id0 {NUMBER_OF_NODES * 100} NBC\n']
 
     for block in node.blockchain[1:]:
@@ -133,6 +139,7 @@ def view_all_transactions():
     reply = json.dumps(''.join(reply))
 
     return reply, 200
+
 
 # Receive data
 #.......................................................................................
@@ -211,7 +218,6 @@ def receive_transaction():
 
 
     return jsonify("Transaction accepted!\n"), 200
-
 
 
 # Connect

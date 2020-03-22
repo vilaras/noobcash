@@ -3,11 +3,10 @@ import sys
 import json
 import requests
 import signal
-import socket
 
 #Graceful exit
 def signal_handler(sig, frame):
-    print('\n\nBye Bye !')
+    print('\nBye Bye!')
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
@@ -23,22 +22,29 @@ port = sys.argv[2]
 base_url = f'http://{ip}:{port}'
 headers = {'Content-type': 'application/json', 'Accept': 'text/pl11ain'}
 
-help_message = '''
-Usage: 
+help_message = '''Usage: 
 
-$ python3 rest.py -i IP -p PORT         Start your server
-$ python3 client.py IP PORT             Start your client 
+$ python3 client.py IP PORT             Start your client  
 
 Available commands:
-    * 'connect'                         Initialize your wallet and conenct to the network
-
-After you have connected you can:
     * `t <recipient_id> <amount>`       Send `amount` NBC to `recepient_id`
-    * `balance`                         Show the IDs of every user along with their balance
+    * `balance`                         View the IDs of every user along with their balance
     * `view`                            View all transactions contained in the last validated block 
     * `view all`                        View all the validated transactions in the network
     * `exit`                            Exit the client
 '''
+
+# Initialize the node and connect to the network
+try:
+    url = f'{base_url}/register_client'
+    response = requests.post(url)
+
+    print(response.json())
+
+except:
+    print(f'Something went wrong in "{url}" request, try again\n')
+    sys.exit(0)
+
 
 print("Hello, I am the blockchain cli. How can I help?")
 
@@ -49,18 +55,8 @@ while True:
         print(help_message)
 
     elif action == 'exit':
-        print('\nBye Bye !')
+        print('\nBye Bye!')
         sys.exit(0)
-
-    elif action == 'connect':
-        try:
-            url = f'{base_url}/register_client'
-            response = requests.post(url)
-
-            print(response.json())
-
-        except:
-            print(f'Something went wrong in "{url}" request\n')
 
     elif action == "balance":
         try:
