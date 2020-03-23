@@ -18,6 +18,8 @@ import jsonpickle
 from copy import deepcopy
 from subprocess import Popen
 import asyncio
+import os
+import signal
 
 
 '''
@@ -41,6 +43,12 @@ class Node:
 		self.wallet = Wallet()
 		self.current_block = ''
 		self.broadcast = Broadcast(host)
+
+		# We need to store all the transactions not in a mined block 
+		# if we add them directly to the current block we have
+		# a problem if while mining we get a transaction
+		# We trigger the miner only when we have > BLOCK_CAPACITY pending transactions
+		self.pending_transactions = []
 		
 		# Here we store information for every node, as its id, its address (ip:port) 
 		# its public key, its balance and it's UTXOs 
@@ -104,7 +112,7 @@ class Node:
 
 		if self.validate_transaction(t):
 			self.commit_transaction(t)
-			self.add_transaction_to_block(t)
+			self.add_transaction_to_pending(t)
 			self.broadcast_transaction(t) 
 
 			return t
@@ -140,28 +148,12 @@ class Node:
 		self.update_balances()
 
 	
-	def add_transaction_to_block(self, transaction):
-		self.current_block.add_transaction(transaction)
+	def add_transaction_to_pending(self, transaction):
+		self.pending_transactions.append(transaction)
 		
-		if len(self.current_block.transactions) == BLOCK_CAPACITY:			
-			if self.miner_pid == -1:
-				try:
-					proc = Popen(['python3', 'miner.py', self.host, jsonpickle.encode({"data": self.current_block})])
-					self.miner_pid = proc.pid
+		if len(self.pending_transactions) >= BLOCK_CAPACITY:
+			self.start_miner()
 
-				except Exception as e:
-					print(f'miner.start: {e.__class__.__name__}: {e}')
-
-			else:
-				# If we reach this point we already run a miner process
-				# and we want to start another one (?)
-				# or we didn't clear up over the last one
-				print("Miner already running! Why start another one")
-
-
-			# We probably need to do this in the /found_block endpoint
-			# self.add_block_to_chain(self.current_block)
-			# self.broadcast_block(self.current_block)
 
 	def add_block_to_chain(self, block):
 		# We have aquired a new block, either by the network or by us
@@ -234,7 +226,7 @@ class Node:
 		UTXOs = self.ring[transaction.sender_address].UTXOs
 		for transaction_id in transaction.transaction_inputs:
 			if not transaction_id in UTXOs:
-				print("Invalid UTXO!! Thief!!")
+				print("Invalid UTXO!!")
 				return False
 
 		in_total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
@@ -250,6 +242,7 @@ class Node:
 
 
 
+	# TODO: Check the trnasactions in each block
 	def validate_block(self, block, previous_block):
 		if len(block.transactions) != BLOCK_CAPACITY:
 			print("Invalid block capacity")
@@ -285,6 +278,44 @@ class Node:
 		asyncio.run(self.broadcast.broadcast('receive_transaction', transaction, 'POST'))
 
 
+
+	# Mining
+
+	def start_miner(self):
+		# If miner not already running			
+		if self.miner_pid == -1:
+			# Add transactions to the block to start mining
+			self.current_block.add_transactions(self.pending_transactions[:BLOCK_CAPACITY])
+
+			try:
+				proc = Popen(['python3', 'miner.py', self.host, jsonpickle.encode({"data": self.current_block})])
+				self.miner_pid = proc.pid
+
+			except Exception as e:
+				print(f'Exception while starting the miner {e.__class__.__name__}: {e}')
+
+			# Remove transactions that got into the block from pending
+			del self.pending_transactions[:BLOCK_CAPACITY]
+
+		else:
+			# If we reach this point we already run a miner process
+			# and we want to start another one (?)
+			# or we didn't clear up over the last one
+			print("Miner already running! Wait to start another one")
+
+
+	def stop_miner(self):
+		# Kill the miner process, we lost the race
+		if self.miner_pid != -1:
+			os.kill(self.miner_pid, signal.SIGTERM)
+			self.miner_pid = -1
+		
+		else:
+			# We are trying a miner process that doesn't exist
+			# or we didn't handle the miner correctly
+			print("Miner already killed, what are you trying to do")
+
+
 	# Concensus functions
 
 	def valid_chain(self, chain):
@@ -305,7 +336,6 @@ class Node:
 	# Asks each user for it's blockchain and keeps the longest valid one 
 	def resolve_conflicts(self):
 		responses = asyncio.run(self.broadcast.broadcast('get_blockchain', 'GET'))
-		blockchains = map()
 		
 		# Decode the response data into python objects 
 		blockchains = map(jsonpickle.decode, responses)

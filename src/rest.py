@@ -66,26 +66,21 @@ def found_block():
     block = jsonpickle.decode(json.dumps(data["data"]))
 
     # Kill the miner process
-    try:
-        if node.miner_pid != -1:
-            print('Killing the miner process', node.miner_pid)
-            os.kill(node.miner_pid, signal.SIGTERM)
-            node.miner_pid = -1
-        
-        else:
-            # We are trying a miner process that doesn't exist
-            # or we didn't handle the miner correctly
-            print("Miner already killed, what are you trying to do")
-
+    try:    
+        node.stop_miner()
+                
     except Exception as e:
-        return jsonify(f'Exception while killing miner in /found_block {e.__class__.__name__}: {e}\n'), 403
+        return jsonify(f'Exception while killing miner in /found_block: {e.__class__.__name__}: {e}\n'), 403
 
     # Add to chain and broadcast the block
     node.add_block_to_chain(block)
     node.broadcast_block(block)
 
+    if len(node.pending_transactions) >= BLOCK_CAPACITY:
+			node.start_miner()
+
     # This is sent back to miner process which should be killed by now 
-    return jsonify("This should never execute but whatever...\n"), 200
+    return jsonify("This should never reach the miner but whatever...\n"), 200
 
 
 @app.route('/get_blockchain', methods=['GET'])
@@ -133,7 +128,7 @@ def view_all_transactions():
         for transaction in block.transactions:
             reply.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
 
-    for transaction in node.current_block.transactions:
+    for transaction in node.pending_transactions:
         reply.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
 
     reply = json.dumps(''.join(reply))
@@ -165,34 +160,33 @@ def receive_block():
     block = jsonpickle.decode(json.dumps(data["data"]))
 
     res = node.validate_block(block, node.blockchain[-1])
-    if res == 'ok':
-        node.add_block_to_chain(block)
+    if res == 'error':
+        return jsonify("Block declined\n"), 403 
 
-        # Kill the miner process, we lost the race...
+    else:
+        # Kill the miner process
         try:
-            if node.miner_pid != -1:
-                # print('Killing the miner process', node.miner_pid)
-                os.kill(node.miner_pid, signal.SIGTERM)
-                node.miner_pid = -1
-            
-            else:
-                # We are trying a miner process that doesn't exist
-                # or we didn't handle the miner correctly
-                print("Miner already killed, what are you trying to do")
-                
+            node.stop_miner()
+
         except Exception as e:
             return jsonify(f'Exception while killing miner in /receive_block: {e.__class__.__name__}: {e}\n'), 403
 
+        if res == 'ok':
+            node.add_block_to_chain(block)
 
-        return jsonify("Block accepted!\n"), 200
+            if len(node.pending_transactions) >= BLOCK_CAPACITY:
+			    node.start_miner()
 
-    elif res == 'consensus':
-        node.resolve_conflicts()
+            return jsonify("Block accepted!\n"), 200
 
-        return jsonify("Had to run consensus but all ok now...")
+        if res == 'consensus':
+            node.resolve_conflicts()
 
-    else: 
-        return jsonify("Block declined\n"), 403 
+            if len(node.pending_transactions) >= BLOCK_CAPACITY:
+			    node.start_miner()
+
+            return jsonify("Had to run consensus"), 200
+
 
 
 @app.route('/receive_transaction', methods=['POST'])
@@ -208,7 +202,7 @@ def receive_transaction():
     try:
         if node.validate_transaction(transaction):
             node.commit_transaction(transaction)
-            node.add_transaction_to_block(transaction)
+            node.add_transaction_to_pending(transaction)
             
         else: 
             return jsonify("Transaction declined\n"), 403

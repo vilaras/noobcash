@@ -64,7 +64,7 @@ while True:
             response = requests.get(url)
 
             if response.status_code != 200:
-                print(f'Something went wrong with {url} request')
+                print(f'Something went wrong with {url} request\n')
 
             else:
                 print(response.json())
@@ -78,7 +78,7 @@ while True:
             response = requests.get(url)
 
             if response.status_code != 200:
-                print(f'Something went wrong with {url} request')
+                print(f'Something went wrong with {url} request\n')
 
             else:
                 print(response.json())
@@ -108,7 +108,7 @@ while True:
             response = requests.post(url, data=payload, headers=headers)
 
             if response.status_code != 200:
-                print(f'Something went wrong with {url} request')
+                print(f'Something went wrong with {url} request\n')
 
             else:
                 print(response.json())

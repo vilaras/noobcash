@@ -62,9 +62,10 @@ class Miner:
 		 
 		url = f'{self.base_url}{self.host}/found_block'
 		payload = jsonpickle.encode({"data": self.current_block})
-		requests.post(url, data=payload, headers=self.headers)
+		response = requests.post(url, data=payload, headers=self.headers)
 
 		# This should never print
+		print(response)
 		print("Why are we still here")
 
 # This check ensures that the code will be executed
