@@ -6,10 +6,7 @@ from flask_cors import CORS
 import requests
 import json
 import jsonpickle
-import sys
 import asyncio
-import os
-import signal
 
 # Class imports
 from node import Node
@@ -37,6 +34,10 @@ def im_bootstrap(host):
     return f'{base_url}{host}' == bootstrap_url
 
 
+@app.route('/resolve', methods=['GET'])
+def resolve():
+    return jsonify(node.resolve_conflicts())
+
 # Send data
 #.......................................................................................
 
@@ -47,6 +48,7 @@ def create_transaction():
     amount = int(data["amount"])
 
     try:
+        address = ''
         for ring_node in node.ring.values():
             if ring_node.id == id:
                 address = ring_node.public_key
@@ -54,7 +56,7 @@ def create_transaction():
         t = node.create_transaction(address, amount)
 
     except Exception as e:
-        return jsonify(f'Exception while creating transaction {e.__class__.__name__}: {e}\n'), 403
+        return jsonify(f'Exception while creating transaction \n{e.__class__.__name__}: {e}\n'), 403
 
 
     return jsonify("Transaction accepted!\n"), 200   
@@ -70,14 +72,14 @@ def found_block():
         node.stop_miner()
                 
     except Exception as e:
-        return jsonify(f'Exception while killing miner in /found_block: {e.__class__.__name__}: {e}\n'), 403
+        return jsonify(f'Exception while killing miner in /found_block: \n{e.__class__.__name__}: {e}\n'), 403 
 
     # Add to chain and broadcast the block
-    node.add_block_to_chain(block)
+    node.add_block_to_chain(block, True)
     node.broadcast_block(block)
 
     if len(node.pending_transactions) >= BLOCK_CAPACITY:
-			node.start_miner()
+        node.start_miner()
 
     # This is sent back to miner process which should be killed by now 
     return jsonify("This should never reach the miner but whatever...\n"), 200
@@ -85,55 +87,61 @@ def found_block():
 
 @app.route('/get_blockchain', methods=['GET'])
 def get_blockchain():
-    return jsonpickle.encode({"data": node.blockchain})
+    return jsonify(jsonpickle.encode({"data": node.blockchain, "host": node.host}))
+
+
+@app.route('/get_blockchain_length', methods=['GET'])
+def get_blockchain_length():
+    return jsonify(jsonpickle.encode({"data": len(node.blockchain), "host": node.host}))
 
 
 @app.route('/balance', methods=['GET'])
 def show_participants():
     # Return a list [id: public_key] for the user to see
-    reply = []
+    data = []
     for public_key, ring_node in node.ring.items():
-        reply.append(f'id{ring_node.id}: {ring_node.balance} NBC\n')
+        data.append(f'id{ring_node.id}: {ring_node.balance} NBC\n')
 
-    reply = json.dumps(''.join(reply))
+    data = json.dumps(''.join(data))
 
-    return reply, 200
+    return data, 200
     
 
 @app.route('/view_transactions', methods=['GET'])
 def view_transactions():
     if len(node.blockchain) == 0:
-        return json.dumps(f'No transactions yet\n'), 200
+        return jsonify(f'No transactions yet\n'), 200
 
     if len(node.blockchain) == 1:
-        return json.dumps(f'id0 -> id0 {NUMBER_OF_NODES * 100} NBC\n'), 200
+        return jsonify(f'id0 -> id0 {NUMBER_OF_NODES * 100} NBC\n'), 200
 
     transactions = node.blockchain[-1].transactions
-    reply = []
+    data = []
     for transaction in transactions:
-        reply.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
+        data.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
     
-    reply = json.dumps(''.join(reply))
+    data = json.dumps(''.join(data))
 
-    return reply, 200
+    return data, 200
+
 
 @app.route('/view_all_transactions', methods=['GET'])
 def view_all_transactions():
     if len(node.blockchain) == 0:
         return json.dumps(f'No transactions yet\n'), 200
 
-    reply = [f'id0 -> id0 {NUMBER_OF_NODES * 100} NBC\n']
+    data = [f'id0 -> id0 {NUMBER_OF_NODES * 100} NBC\n']
 
     for block in node.blockchain[1:]:
         for transaction in block.transactions:
-            reply.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
+            data.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
 
     for transaction in node.pending_transactions:
-        reply.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
+        data.append(f'id{node.ring[transaction.sender_address].id} -> id{node.ring[transaction.receiver_address].id} {transaction.amount} NBC\n')
 
-    reply = json.dumps(''.join(reply))
+    data = json.dumps(''.join(data))
 
-    return reply, 200
+    return data, 200
 
 
 # Receive data
@@ -145,11 +153,12 @@ def receive_genesis_block():
     block = jsonpickle.decode(json.dumps(data["data"]))
 
     try:
-        node.add_block_to_chain(block)
+        node.blockchain.append(block)
+        node.create_new_block()
         node.commit_genesis_transaction(block.transactions[0])
 
     except Exception as e:
-        return jsonify(f'Exception while receiving genesis block {e.__class__.__name__}: {e}\n'), 403
+        return jsonify(f'Exception while receiving genesis block \n{e.__class__.__name__}: {e}\n'), 403
 
     return jsonify("Got it\n"), 200
 
@@ -169,13 +178,13 @@ def receive_block():
             node.stop_miner()
 
         except Exception as e:
-            return jsonify(f'Exception while killing miner in /receive_block: {e.__class__.__name__}: {e}\n'), 403
+            return jsonify(f'Exception while killing miner in /receive_block: \n{e.__class__.__name__}: {e}\n'), 403
 
         if res == 'ok':
-            node.add_block_to_chain(block)
+            node.add_block_to_chain(block, False)
 
             if len(node.pending_transactions) >= BLOCK_CAPACITY:
-			    node.start_miner()
+                node.start_miner()
 
             return jsonify("Block accepted!\n"), 200
 
@@ -183,7 +192,7 @@ def receive_block():
             node.resolve_conflicts()
 
             if len(node.pending_transactions) >= BLOCK_CAPACITY:
-			    node.start_miner()
+                node.start_miner()
 
             return jsonify("Had to run consensus"), 200
 
@@ -208,7 +217,7 @@ def receive_transaction():
             return jsonify("Transaction declined\n"), 403
 
     except Exception as e:
-        return jsonify(f'Exception while receiving transaction {e.__class__.__name__}: {e}\n'), 403
+        return jsonify(f'Exception while receiving transaction \n{e.__class__.__name__}: {e}\n'), 403
 
 
     return jsonify("Transaction accepted!\n"), 200
@@ -238,18 +247,18 @@ def register_client():
 
         #Connect with the rest of the network
         try: 
-            data = json.dumps({
+            payload = json.dumps({
                 "public_key": node.wallet.public_key,
                 "host": f'{ip}:{port}'
             })
             url = f'{bootstrap_url}/client_connect'
-            response = requests.post(url, data=data, headers=headers)
+            response = requests.post(url, data=payload, headers=headers)
 
             if response.status_code != 200:
-                print(f'Something went wrong with {url} request')
+                return jsonify(f'Something went wrong with {url} request'), response.status_code
 
         except Exception as e:
-            return jsonify(f'Exception while registering client {e.__class__.__name__}: {e}\n'), 403
+            return jsonify(f'Exception while registering client \n{e.__class__.__name__}: {e}\n'), 403
 
         return jsonify("You have connected successfully!\n"), 200
 

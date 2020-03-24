@@ -41,8 +41,8 @@ try:
 
     print(response.json())
 
-except:
-    print(f'Something went wrong in "{url}" request, try again\n')
+except Exception as e:
+    print(f'Exception in "{url}" request \n{e.__class__.__name__}: {e}\n')
     sys.exit(0)
 
 
@@ -51,70 +51,55 @@ print("Hello, I am the blockchain cli. How can I help?")
 while True:
     action = input("> ").strip()
    
-    if action == 'help':    
-        print(help_message)
-
-    elif action == 'exit':
-        print('\nBye Bye!')
-        sys.exit(0)
-
-    elif action == "balance":
+    if action == "balance":
         try:
             url = f'{base_url}/balance'
             response = requests.get(url)
 
-            if response.status_code != 200:
-                print(f'Something went wrong with {url} request\n')
+            print(response.json())
 
-            else:
-                print(response.json())
-
-        except:
-            print(f'Something went wrong in "{url}" request\n')
+        except Exception as e:
+            print(f'Exception in "{url}" request \n{e.__class__.__name__}: {e}\n')
 
     elif action == 'view':
         try:
             url = f'{base_url}/view_transactions'
             response = requests.get(url)
 
-            if response.status_code != 200:
-                print(f'Something went wrong with {url} request\n')
+            print(response.json())
 
-            else:
-                print(response.json())
-
-        except:
-            print(f'Something went wrong in "{url}" request\n')
+        except Exception as e:
+            print(f'Exception in "{url}" request \n{e.__class__.__name__}: {e}\n')
 
     elif action == 'view all':
         try:
             url = f'{base_url}/view_all_transactions'
             response = requests.get(url)
 
-            if response.status_code != 200:
-                print(f'Something went wrong with {url} request')
+            print(response.json())
 
-            else:
-                print(response.json())
-
-        except:
-            print(f'Something went wrong in "{url}" request\n')
+        except Exception as e:
+            print(f'Exception in "{url}" request \n{e.__class__.__name__}: {e}\n')
 
     elif action.startswith('t'):
         try:
             url = f'{base_url}/create_transaction'
             inputs = action.split()
-            payload = json.dumps({'id':inputs[1][-1], 'amount':inputs[2]})
+            id_num = inputs[1].split('id')[-1]
+            payload = json.dumps({'id':id_num, 'amount':inputs[2]})
             response = requests.post(url, data=payload, headers=headers)
 
-            if response.status_code != 200:
-                print(f'Something went wrong with {url} request\n')
+            print(response.json())
 
-            else:
-                print(response.json())
+        except Exception as e:
+            print(f'Exception in "{url}" request \n{e.__class__.__name__}: {e}\n')
 
-        except:
-            print(f'Something went wrong in "{url}" request\n')
+    elif action == 'help':    
+        print(help_message)
+
+    elif action == 'exit':
+        print('\nBye Bye!')
+        sys.exit(0)
 
     else:
         print(f'{action}: Unknown command. See `help`\n')

@@ -14,6 +14,7 @@ from broadcast import Broadcast
 from config import *
 
 # Util imports
+import requests
 import jsonpickle
 from copy import deepcopy
 from subprocess import Popen
@@ -96,7 +97,7 @@ class Node:
 				total += transaction.amount
 
 		if total < amount:
-			raise ValueError('Something went wrong')
+			raise Exception("You don't have enough money, unfortunately...")
 
 		t = Transaction(self.wallet.public_key, receiver_address, amount, deepcopy(transaction_inputs))
 
@@ -117,8 +118,8 @@ class Node:
 
 			return t
 
-		else:
-			raise ValueError('Something went wrong in create transaction')
+		# else:
+		# 	raise Exception('Something went wrong in create transaction')
 		
 
 	def update_balances(self):
@@ -155,8 +156,25 @@ class Node:
 			self.start_miner()
 
 
-	def add_block_to_chain(self, block):
+	# If it is my block added to the chain we can delete the 
+	# pending transactions much faster!
+	def add_block_to_chain(self, block, is_my_block=False):
 		# We have aquired a new block, either by the network or by us
+		# Remove transactions that got into the block from pending
+		if is_my_block:
+			del self.pending_transactions[:BLOCK_CAPACITY]
+
+		else:
+			# Optimizing the deletion process for arbitrary transactions to 
+			# only check the transaction ids for equality
+			transaction_ids = [transaction.transaction_id for transaction in block.transactions]
+			self.pending_transactions = list(
+				filter(
+					lambda transaction: transaction.transaction_id not in transaction_ids, 
+					self.pending_transactions
+				)
+			)
+
 		self.blockchain.append(block)
 		self.create_new_block()
 
@@ -180,7 +198,8 @@ class Node:
 		g = self.create_genesis_block()
 		g.setup_mined_block(0)
 		self.broadcast_genesis_block(g)
-		self.add_block_to_chain(g)
+		self.blockchain.append(g)
+		self.create_new_block()
 
 		for peer in self.ring.values():
 			if peer.public_key != self.wallet.public_key:
@@ -205,41 +224,38 @@ class Node:
 
 	def validate_transaction(self, transaction):
 		if not self.validate_user(transaction.sender_address):
-			print("I don't know the sender!")
-			return False
+			raise Exception("I don't know the sender!")
 
 		if not self.validate_user(transaction.receiver_address):
-			print("I don't know the receiver!")
-			return False
+			raise Exception("I don't know the receiver!")
 
 		# If we allow a user to send transactions to himself he could flood the
 		# network with these transactions and prevent the other transactions from
 		# finding a place into blocks, thus adding a delay to the network
 		if transaction.sender_address == transaction.receiver_address:
-			print("You can't send money to yourself!")
-			return False
+			raise Exception("You can't send money to yourself!")
 
 		if transaction.amount <= 0:
-			print("You actually need to send some money")
-			return False
+			raise Exception("You actually need to send some money")
 
 		UTXOs = self.ring[transaction.sender_address].UTXOs
 		for transaction_id in transaction.transaction_inputs:
 			if not transaction_id in UTXOs:
-				print("Invalid UTXO!!")
-				return False
+				raise Exception("Invalid UTXO!!")
 
 		in_total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
 		if in_total < transaction.amount:
-			print("Not enough money to commit the transaction")
-			return False
+			raise Exception("Not enough money to commit the transaction")
 
-		if in_total >= transaction.amount:
-			out_total = sum(UTXO.amount for UTXO in transaction.transaction_outputs)
+		# conservation of money
+		out_total = sum(UTXO.amount for UTXO in transaction.transaction_outputs)
+		if in_total != out_total:
+			raise Exception("Did you just give birth to money?")
+		
+		if not self.validate_signature(transaction):
+			raise Exception("Invalid Signature")
 
-			# conservation of money
-			return in_total == out_total and self.validate_signature(transaction)
-
+		return True
 
 
 	# TODO: Check the trnasactions in each block
@@ -294,9 +310,6 @@ class Node:
 			except Exception as e:
 				print(f'Exception while starting the miner {e.__class__.__name__}: {e}')
 
-			# Remove transactions that got into the block from pending
-			del self.pending_transactions[:BLOCK_CAPACITY]
-
 		else:
 			# If we reach this point we already run a miner process
 			# and we want to start another one (?)
@@ -334,17 +347,33 @@ class Node:
 
 
 	# Asks each user for it's blockchain and keeps the longest valid one 
+	#
+	# Optimization Idea: First ask every user for the length of it's blockchain
+	# and then only ask the user with the longest blockchain
+	# for the whole blockchain. If this blockchain is invalid greedily try
+	# the next one etc...
 	def resolve_conflicts(self):
-		responses = asyncio.run(self.broadcast.broadcast('get_blockchain', 'GET'))
-		
+		responses = asyncio.run(self.broadcast.broadcast('get_blockchain_length', {}, 'GET'))
+
 		# Decode the response data into python objects 
-		blockchains = map(jsonpickle.decode, responses)
-		blockchains.append(self.blockchain)
-		
-		# Filter out all the non valid blockchains
-		valid_blockchains = filter(valid_chain, blockchains)
-		
-		# accept the longest chain 
-		self.blockchain = max(valid_blockchains, key=len)
+		blockchain_lenghts = map(jsonpickle.decode, responses)
+		sorted_blockchain_lengths = blockchain_lenghts.sort(key=lambda item: item['data'])
 
+		# We are fine, we have the longest chain
+		if sorted_blockchain_lengths[0]['data'] <= len(self.blockchain):
+			return
 
+		for item in sorted_blockchain_lengths:
+			url = f'http://{item["host"]}/get_blockchain'
+			headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+			response = requests.get(url, headers)
+
+			candidate_blockchain = jsonpickle.decode(response.json())
+			if self.valid_chain(candidate_blockchain):
+				print("We found a valid chain to replace ours!")
+				self.blockchain = candidate_blockchain
+				break
+		
+		# Executes only if we didn't break the for loop
+		else:
+			print("We didn't find a valid")

@@ -36,8 +36,9 @@ class Broadcast:
                         print(f'non-aiohttp exception for {url} {e.__class__.__name__}: {e}')
 
 
-            await asyncio.gather(*tasks)
-            return tasks
+            responses = await asyncio.gather(*tasks)
+
+            return responses
 
 
     async def post(self, url, session, payload):
@@ -46,7 +47,7 @@ class Broadcast:
             if resp.status != 200:
                 raise Exception(f'Expected status code 200, but got {resp.status}')
             
-            return resp
+            return await resp.json()
 
 
     async def get(self, url, session):
@@ -54,4 +55,4 @@ class Broadcast:
             if resp.status != 200:
                 raise Exception(f'Expected status code 200, but got {resp.status}')
             
-            return json.dumps(json.loads(resp)['data'])
+            return await resp.json()
