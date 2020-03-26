@@ -33,7 +33,9 @@ Returns <bool>:
 def im_bootstrap(host):
     return f'{base_url}{host}' == bootstrap_url
 
-# Added for testing purposes
+# Testing
+#.......................................................................................
+
 @app.route('/resolve', methods=['GET'])
 def resolve():
     return jsonify(node.resolve_conflicts())
@@ -52,6 +54,7 @@ def stress_test():
             print(response.json())
 
     return "hi"
+
 
 # Send data
 #.......................................................................................
@@ -93,7 +96,8 @@ def found_block():
         return jsonify(f'Exception while killing miner in /found_block: \n{e.__class__.__name__}: {e}\n'), 403 
 
     if len(node.pending_transactions) >= BLOCK_CAPACITY:
-        node.start_miner()
+        if node.request_miner_access():
+            node.start_miner()
 
     # Broadcast block
     node.broadcast_block(block)
@@ -225,7 +229,8 @@ def receive_block():
             node.add_block_to_chain(block, False)
 
             if len(node.pending_transactions) >= BLOCK_CAPACITY:
-                node.start_miner()
+                if node.request_miner_access():
+                    node.start_miner()
 
             return jsonify("Block accepted!\n"), 200
 
@@ -233,7 +238,8 @@ def receive_block():
             node.resolve_conflicts()
 
             if len(node.pending_transactions) >= BLOCK_CAPACITY:
-                node.start_miner()
+                if node.request_miner_access():
+                    node.start_miner()
 
             return jsonify("Had to run consensus"), 200
 

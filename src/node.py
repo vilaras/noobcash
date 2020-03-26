@@ -21,6 +21,7 @@ from subprocess import Popen
 import asyncio
 import os
 import signal
+import threading
 
 
 '''
@@ -61,6 +62,7 @@ class Node:
 		# The miner subprocess PID
 		# If it is -1 the subprocess is not running
 		self.miner_pid = -1
+		self.miner_lock = threading.Lock()
 
 
 	def create_new_block(self):
@@ -169,7 +171,8 @@ class Node:
 		self.pending_transactions.append(transaction)
 		
 		if len(self.pending_transactions) >= BLOCK_CAPACITY:
-			self.start_miner()
+			if self.request_miner_access():
+				self.start_miner()
 
 
 	# If it is my block added to the chain we can delete the 
@@ -178,21 +181,8 @@ class Node:
 		self.blockchain.append(block)
 		self.create_new_block()
 
-		# We have aquired a new block, either by the network or by us
-		# Remove transactions that got into the block from pending
-		if is_my_block:
-			del self.pending_transactions[:BLOCK_CAPACITY]
-
-		else:
-			# Optimizing the deletion process for arbitrary transactions to 
-			# only check the transaction ids for equality
-			transaction_ids = [transaction.transaction_id for transaction in block.transactions]
-			self.pending_transactions = list(
-				filter(
-					lambda transaction: transaction.transaction_id not in transaction_ids, 
-					self.pending_transactions
-				)
-			)
+		transaction_ids = [transaction.transaction_id for transaction in block.transactions]
+		self.update_pending_transactions(transaction_ids, is_my_block)
 
 
 
@@ -298,6 +288,9 @@ class Node:
 			if not block.hash.startswith('0' * MINING_DIFFICULTY):
 				raise Exception(f'Invalid nonce!, {block.hash}')
 
+			if len(set(transaction.transaction_id for transaction in block.transactions)) != len(block.transactions):
+				raise Exception("Duplicate transaction inputs")
+
 			if block.previous_hash == previous_block.hash:
 				# Everything seems ok
 				return 'ok'
@@ -328,43 +321,58 @@ class Node:
 
 	def start_miner(self):
 		# If miner not already running			
-		if self.miner_pid == -1:
-			# Add transactions to the block to start mining
-			self.current_block.add_transactions(self.pending_transactions[:BLOCK_CAPACITY])
+		# Add transactions to the block to start mining
+		self.current_block.add_transactions(self.pending_transactions[:BLOCK_CAPACITY])
 
-			try:
-				proc = Popen(['python3', 'miner.py', self.host, jsonpickle.encode({"data": self.current_block})])
-				self.miner_pid = proc.pid
+		try:
+			proc = Popen(['python3', 'miner.py', self.host, jsonpickle.encode({"data": self.current_block})])
+			self.miner_pid = proc.pid
 
-			except Exception as e:
-				print(f'Exception while starting the miner {e.__class__.__name__}: {e}')
-
-		else:
-			# If we reach this point we already run a miner process
-			# and we want to start another one (?)
-			# or we didn't clear up over the last one
-			print("Miner already running! Wait to start another one")
+		except Exception as e:
+			print(f'Exception while starting the miner {e.__class__.__name__}: {e}')
 
 
 	def stop_miner(self):
 		# Kill the miner process, we lost the race
-		if self.miner_pid != -1:
-			try:
-				os.kill(self.miner_pid, signal.SIGTERM)
-				self.miner_pid = -1
+		try:
+			os.kill(self.miner_pid, signal.SIGTERM)
+			self.miner_pid = -1
 
-			except Exception as e:
-				print(f'Exception in miner termination: \n{e.__class__.__name__}: {e}')
-				# self.stop_miner()
+		except Exception as e:
+			print(f'Exception in miner termination: \n{e.__class__.__name__}: {e}')
 
-		else:
-			# We are trying a miner process that doesn't exist
-			# or we didn't handle the miner correctly
-			print("Miner already killed, what are you trying to do")
+
+	def request_miner_access(self):
+		with self.miner_lock:
+			if self.miner_pid == -1:
+				self.miner_pid = 1
+				return True
+
+			else:
+				print("Miner already running! Wait to start another one")
+				return False
+
 
 
 
 	# Concensus functions
+
+	# We have aquired a new block, either by the network or by us
+	# Remove transactions that got into the block from pending
+	def update_pending_transactions(self, transaction_ids, is_my_block):
+		# Optimizing the deletion process for arbitrary transactions to 
+		# only check the transaction ids for equality
+		if is_my_block:
+			del self.pending_transactions[:BLOCK_CAPACITY]
+
+		else:
+			self.pending_transactions = list(
+				filter(
+					lambda transaction: transaction.transaction_id not in transaction_ids, 
+					self.pending_transactions
+				)
+			)
+
 
 	# When we adopt another chain we have to reconstruct the
 	# state of the network as dicatetd by this chain
@@ -394,7 +402,6 @@ class Node:
 	# for the whole blockchain. If this blockchain is invalid greedily try
 	# the next one etc...
 	def resolve_conflicts(self):	
-		print("CONSENSUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUS")
 		responses = asyncio.run(self.broadcast.broadcast('get_blockchain_length', {}, 'GET'))
 
 		# Decode the response data into python objects 
@@ -410,14 +417,25 @@ class Node:
 			headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 			response = requests.get(url, headers)
 
-			candidate_blockchain = jsonpickle.decode(response.json())
-			if len(candidate_blockchain) != item["data"]:
+			candidate_blockchain = jsonpickle.decode(response.json())['data']
+			if len(candidate_blockchain) != int(item['data']):
 				print("You lied to me!")
 				continue
 
 			if self.valid_chain(candidate_blockchain):
 				print("We found a valid chain to replace ours!")
+				
+				# Find the new veryfied transactions to remove from our pending
+				i = 0
+				while self.blockchain[i] == candidate_blockchain[i]:
+					i += 1
+
+				his_transactions_ids = [transaction.transaction_id for transaction in candidate_blockchain[i:]]
+
 				self.blockchain = candidate_blockchain
+				self.update_pending_transactions(his_transactions_ids, False)
+				self.create_new_block()
+
 				break
 		
 		# Executes only if we didn't break the for loop
@@ -425,4 +443,3 @@ class Node:
 			print("We didn't find a valid")
 
 		
-		self.create_new_block()
