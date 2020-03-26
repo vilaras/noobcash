@@ -20,7 +20,7 @@ if len(sys.argv) != 3:
 ip = sys.argv[1]
 port = sys.argv[2]
 base_url = f'http://{ip}:{port}'
-headers = {'Content-type': 'application/json', 'Accept': 'text/pl11ain'}
+headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 
 help_message = '''Usage: 
 

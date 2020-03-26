@@ -51,6 +51,9 @@ class Node:
 		# We trigger the miner only when we have > BLOCK_CAPACITY pending transactions
 		self.pending_transactions = []
 		
+		# Transactions that we have not received all the inputs for
+		self.orphan_transactions = {}
+
 		# Here we store information for every node, as its id, its address (ip:port) 
 		# its public key, its balance and it's UTXOs 
 		self.ring = {}   
@@ -111,7 +114,7 @@ class Node:
 		t.set_transaction_outputs(transaction_outputs)
 		t.sign_transaction(self.wallet.private_key)
 
-		if self.validate_transaction(t):
+		if self.validate_transaction(t) == 'ok':
 			self.commit_transaction(t)
 			self.add_transaction_to_pending(t)
 			self.broadcast_transaction(t) 
@@ -139,6 +142,19 @@ class Node:
 
 		self.update_balances()
 
+	def resolve_dependencies(self, transaction):
+		for transaction, dependencies in self.orphan_transactions.items():
+			dependencies -= {transaction.transaction_id}
+
+			if len(dependencies) == 0:
+				del self.orphan_transactions[transaction]
+
+				if self.validate_transaction(transaction):
+					self.commit_transaction(transaction)
+					self.add_transaction_to_pending(transaction)
+				
+					self.resolve_conflicts(transaction)
+
 
 	# In the genesis transaction there is no sender address
 	def commit_genesis_transaction(self, transaction):
@@ -159,6 +175,9 @@ class Node:
 	# If it is my block added to the chain we can delete the 
 	# pending transactions much faster!
 	def add_block_to_chain(self, block, is_my_block=False):
+		self.blockchain.append(block)
+		self.create_new_block()
+
 		# We have aquired a new block, either by the network or by us
 		# Remove transactions that got into the block from pending
 		if is_my_block:
@@ -175,8 +194,6 @@ class Node:
 				)
 			)
 
-		self.blockchain.append(block)
-		self.create_new_block()
 
 
 	# Initialization Functions
@@ -223,64 +240,77 @@ class Node:
 
 
 	def validate_transaction(self, transaction):
-		if not self.validate_user(transaction.sender_address):
-			raise Exception("I don't know the sender!")
+		try:
+			if transaction in self.pending_transactions:
+				raise Exception("Already have this")
 
-		if not self.validate_user(transaction.receiver_address):
-			raise Exception("I don't know the receiver!")
+			if not self.validate_user(transaction.sender_address):
+				raise Exception("I don't know the sender!")
 
-		# If we allow a user to send transactions to himself he could flood the
-		# network with these transactions and prevent the other transactions from
-		# finding a place into blocks, thus adding a delay to the network
-		if transaction.sender_address == transaction.receiver_address:
-			raise Exception("You can't send money to yourself!")
+			if not self.validate_user(transaction.receiver_address):
+				raise Exception("I don't know the receiver!")
 
-		if transaction.amount <= 0:
-			raise Exception("You actually need to send some money")
+			# If we allow a user to send transactions to himself he could flood the
+			# network with these transactions and prevent the other transactions from
+			# finding a place into blocks, thus adding a delay to the network
+			if transaction.sender_address == transaction.receiver_address:
+				raise Exception("You can't send money to yourself!")
 
-		UTXOs = self.ring[transaction.sender_address].UTXOs
-		for transaction_id in transaction.transaction_inputs:
-			if not transaction_id in UTXOs:
-				raise Exception("Invalid UTXO!!")
+			if transaction.amount <= 0:
+				raise Exception("You actually need to send some money")
 
-		in_total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
-		if in_total < transaction.amount:
-			raise Exception("Not enough money to commit the transaction")
+			if len(set(transaction.transaction_inputs)) != len(transaction.transaction_inputs):
+				raise Exception("Duplicate transaction inputs")
 
-		# conservation of money
-		out_total = sum(UTXO.amount for UTXO in transaction.transaction_outputs)
-		if in_total != out_total:
-			raise Exception("Did you just give birth to money?")
-		
-		if not self.validate_signature(transaction):
-			raise Exception("Invalid Signature")
+			UTXOs = self.ring[transaction.sender_address].UTXOs
+			for transaction_id in transaction.transaction_inputs:
+				if not transaction_id in UTXOs:
+					return 'orphan'
 
-		return True
+			in_total = sum(UTXOs[transaction_id].amount for transaction_id in transaction.transaction_inputs)
+			if in_total < transaction.amount:
+				raise Exception("Not enough money to commit the transaction")
 
+			# conservation of money
+			out_total = sum(UTXO.amount for UTXO in transaction.transaction_outputs)
+			if in_total != out_total:
+				raise Exception("Did you just give birth to money?")
+			
+			if not self.validate_signature(transaction):
+				raise Exception("Invalid Signature")
 
-	# TODO: Check the trnasactions in each block
-	def validate_block(self, block, previous_block):
-		if len(block.transactions) != BLOCK_CAPACITY:
-			print("Invalid block capacity")
-			return 'error'
-
-		if block.hash != block.__hash__().hexdigest():
-			print("Invalid hash!")
-			return 'error'
-
-		if not block.hash.startswith('0' * MINING_DIFFICULTY):
-			print("Invalid nonce!")
-			return 'error'
-
-		if block.previous_hash == previous_block.hash:
-			# Everything seems ok
 			return 'ok'
 
-		else:
-			# The block is valid but the chaining is faulty, 
-			# we probably have a fork
-			return 'consensus'
-			
+		except Exception as e:
+			print(f'Exception in transaction validation: \n{e.__class__.__name__}: {e}')
+			return 'error'
+
+
+	# TODO: Check the transactions in each block
+	def validate_block(self, block, previous_block):
+		try:
+			if len(block.transactions) != BLOCK_CAPACITY:
+				raise Exception(f'Invalid block capacity, {len(block.transactions)}')
+
+			if block.hash != block.__hash__().hexdigest():
+				raise Exception("Invalid hash!")
+
+			if not block.hash.startswith('0' * MINING_DIFFICULTY):
+				raise Exception(f'Invalid nonce!, {block.hash}')
+
+			if block.previous_hash == previous_block.hash:
+				# Everything seems ok
+				return 'ok'
+
+			else:
+				# The block is valid but the chaining is faulty, 
+				# we probably have a fork
+				return 'consensus'
+
+		except Exception as e:
+			print(f'Exception in block validation: \n{e.__class__.__name__}: {e}')
+			return 'error'
+
 
 	# Broadcast functions
 
@@ -292,7 +322,6 @@ class Node:
 
 	def broadcast_transaction(self, transaction):
 		asyncio.run(self.broadcast.broadcast('receive_transaction', transaction, 'POST'))
-
 
 
 	# Mining
@@ -320,19 +349,31 @@ class Node:
 	def stop_miner(self):
 		# Kill the miner process, we lost the race
 		if self.miner_pid != -1:
-			os.kill(self.miner_pid, signal.SIGTERM)
-			self.miner_pid = -1
-		
+			try:
+				os.kill(self.miner_pid, signal.SIGTERM)
+				self.miner_pid = -1
+
+			except Exception as e:
+				print(f'Exception in miner termination: \n{e.__class__.__name__}: {e}')
+				# self.stop_miner()
+
 		else:
 			# We are trying a miner process that doesn't exist
 			# or we didn't handle the miner correctly
 			print("Miner already killed, what are you trying to do")
 
 
+
 	# Concensus functions
 
+	# When we adopt another chain we have to reconstruct the
+	# state of the network as dicatetd by this chain
+	# 
+	# Thus, starting from the genesis block and
+	# appending each block from the chain we have to
+	# recompute the UTXOs for every node
 	def valid_chain(self, chain):
-		# A blockchain only with the genesis block is valid
+		# A blockchain with only the genesis block is valid
 		if len(chain) == 1:
 			return True
 		
@@ -340,7 +381,7 @@ class Node:
 		for block in chain[1:]:
 			if self.validate_block(block, previous_block) != 'ok':
 				return False
-			
+
 			previous_block = block
 
 		return True
@@ -352,12 +393,13 @@ class Node:
 	# and then only ask the user with the longest blockchain
 	# for the whole blockchain. If this blockchain is invalid greedily try
 	# the next one etc...
-	def resolve_conflicts(self):
+	def resolve_conflicts(self):	
+		print("CONSENSUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUS")
 		responses = asyncio.run(self.broadcast.broadcast('get_blockchain_length', {}, 'GET'))
 
 		# Decode the response data into python objects 
-		blockchain_lenghts = map(jsonpickle.decode, responses)
-		sorted_blockchain_lengths = blockchain_lenghts.sort(key=lambda item: item['data'])
+		blockchain_lengths = map(jsonpickle.decode, responses)
+		sorted_blockchain_lengths = sorted(blockchain_lengths, key=lambda item: item['data'])
 
 		# We are fine, we have the longest chain
 		if sorted_blockchain_lengths[0]['data'] <= len(self.blockchain):
@@ -369,6 +411,10 @@ class Node:
 			response = requests.get(url, headers)
 
 			candidate_blockchain = jsonpickle.decode(response.json())
+			if len(candidate_blockchain) != item["data"]:
+				print("You lied to me!")
+				continue
+
 			if self.valid_chain(candidate_blockchain):
 				print("We found a valid chain to replace ours!")
 				self.blockchain = candidate_blockchain
@@ -377,3 +423,6 @@ class Node:
 		# Executes only if we didn't break the for loop
 		else:
 			print("We didn't find a valid")
+
+		
+		self.create_new_block()

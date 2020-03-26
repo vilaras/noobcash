@@ -45,7 +45,9 @@ class Transaction:
 
         return h
 
-    # TODO: Write it in a better way
+    def __eq__(self, other):
+        return self.transaction_id == other.transaction_id
+
     def __str__(self):
         return f'sender_address: {self.sender_address} \nreceiver_address: {self.receiver_address} \namount: {self.amount} \ntransaction_inputs: {self.transaction_inputs} \ntransaction_outputs: {self.transaction_outputs} \ntransaction_id: {self.transaction_id} \nsignature: {self.signature}'
 

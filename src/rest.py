@@ -33,10 +33,25 @@ Returns <bool>:
 def im_bootstrap(host):
     return f'{base_url}{host}' == bootstrap_url
 
-
+# Added for testing purposes
 @app.route('/resolve', methods=['GET'])
 def resolve():
     return jsonify(node.resolve_conflicts())
+
+
+@app.route('/stress_test', methods=['GET'])
+def stress_test():
+    file = f'../5nodes/transactions{node.host[-1]}.txt' 
+    with open(file) as infile:
+        for line in infile:
+            inputs = line.split()
+            id_num = inputs[0].split('id')[-1]
+            payload = json.dumps({'id':id_num, 'amount':inputs[1]})
+            response = requests.post(f'http://{node.host}/create_transaction', data=payload, headers=headers)
+            
+            print(response.json())
+
+    return "hi"
 
 # Send data
 #.......................................................................................
@@ -67,6 +82,9 @@ def found_block():
     data = request.get_json()
     block = jsonpickle.decode(json.dumps(data["data"]))
 
+    # Add block to chain 
+    node.add_block_to_chain(block, True)
+    
     # Kill the miner process
     try:    
         node.stop_miner()
@@ -74,12 +92,11 @@ def found_block():
     except Exception as e:
         return jsonify(f'Exception while killing miner in /found_block: \n{e.__class__.__name__}: {e}\n'), 403 
 
-    # Add to chain and broadcast the block
-    node.add_block_to_chain(block, True)
-    node.broadcast_block(block)
-
     if len(node.pending_transactions) >= BLOCK_CAPACITY:
         node.start_miner()
+
+    # Broadcast block
+    node.broadcast_block(block)
 
     # This is sent back to miner process which should be killed by now 
     return jsonify("This should never reach the miner but whatever...\n"), 200
@@ -93,6 +110,30 @@ def get_blockchain():
 @app.route('/get_blockchain_length', methods=['GET'])
 def get_blockchain_length():
     return jsonify(jsonpickle.encode({"data": len(node.blockchain), "host": node.host}))
+
+
+@app.route('/get_pending_transactions', methods=['GET'])
+def get_pending_transactions():
+    data = [transaction.transaction_id for transaction in node.pending_transactions]
+    return jsonify(jsonpickle.encode({"data": data, "host": node.host}))
+
+
+@app.route('/get_pending_lengths', methods=['GET'])
+def get_pending_lengths():
+    data = len(node.pending_transactions)
+    return jsonify(jsonpickle.encode({"data": data, "host": node.host}))
+
+
+@app.route('/get_orphan_transactions', methods=['GET'])
+def get_orphan_transactions():
+    data = [transaction.transaction_id for transaction in node.orphan_transactions]
+    return jsonify(jsonpickle.encode({"data": data, "host": node.host}))
+
+
+@app.route('/get_orphan_lengths', methods=['GET'])
+def get_orphan_lengths():
+    data = len(node.orphan_transactions)
+    return jsonify(jsonpickle.encode({"data": data, "host": node.host}))
 
 
 @app.route('/balance', methods=['GET'])
@@ -209,9 +250,14 @@ def receive_transaction():
         return jsonify("You sent me a transaction that wasn't yours!"), 403
 
     try:
-        if node.validate_transaction(transaction):
+        ret = node.validate_transaction(transaction)
+        if ret == 'ok':
             node.commit_transaction(transaction)
             node.add_transaction_to_pending(transaction)
+            node.resolve_dependencies(transaction)
+        
+        elif ret == 'orphan':
+            node.orphan_transacions[transaction] = set(transaction.transaction_inputs)
             
         else: 
             return jsonify("Transaction declined\n"), 403

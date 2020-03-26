@@ -48,6 +48,9 @@ class Block:
 
 		return f'index: {self.index}\nprevious_hash: {self.previous_hash}\nnonce: {self.nonce}\n\ntransactions: {tx_str}\ntimestamp: {self.timestamp}\nhash: {self.hash}\n'
 
+	def __eq__(self, other):
+	 return self.hash == other.hash
+
 	def setup_mined_block(self, nonce):
 		self.nonce = nonce
 		self.hash = self.__hash__().hexdigest()
