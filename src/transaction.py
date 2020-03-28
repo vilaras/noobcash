@@ -32,24 +32,29 @@ class Transaction:
         self.amount = amount
         self.transaction_inputs = transaction_inputs
         self.transaction_outputs = []
-        self.signature = 42
+        self.signature = ''
         self.transaction_id = self.__hash__().hexdigest()
 
     def __hash__(self):
-        # In order to not include the signature in hash calculation
-        # Please find a better way to do this
-        temp = self.signature
-        self.signature = 42
-        h = SHA256.new(jsonpickle.encode(self).encode())
-        self.signature = temp
+        toJSON = self.dumps()
 
-        return h
+        return SHA256.new(jsonpickle.encode(toJSON).encode())
 
     def __eq__(self, other):
         return self.transaction_id == other.transaction_id
 
-    def __str__(self):
-        return f'sender_address: {self.sender_address} \nreceiver_address: {self.receiver_address} \namount: {self.amount} \ntransaction_inputs: {self.transaction_inputs} \ntransaction_outputs: {self.transaction_outputs} \ntransaction_id: {self.transaction_id} \nsignature: {self.signature}'
+    def dumps(self):
+        json_UTXOs = [UTXO.dumps() for UTXO in self.transaction_outputs]
+
+        return json.dumps(
+            dict(
+                sender_address = self.sender_address,
+                receiver_address = self.receiver_address,
+                amount = self.amount,
+                transaction_inputs = self.transaction_inputs,
+                transaction_outputs = json_UTXOs,
+            ), sort_keys=True
+        )
 
     def set_transaction_outputs(self, transaction_outputs):
         self.transaction_outputs = transaction_outputs

@@ -85,8 +85,13 @@ while True:
         try:
             url = f'{base_url}/create_transaction'
             inputs = action.split()
-            id_num = inputs[1].split('id')[-1]
-            payload = json.dumps({'id':id_num, 'amount':inputs[2]})
+            id_num = inputs[1].split('id')
+
+            if len(inputs) != 3 or len(id_num) != 2 or id_num[1] == '':
+                print("Invalid format, see `help` for correct syntax\n") 
+                continue
+
+            payload = json.dumps({'id':id_num[1], 'amount':inputs[2]})
             response = requests.post(url, data=payload, headers=headers)
 
             print(response.json())
@@ -102,4 +107,4 @@ while True:
         sys.exit(0)
 
     else:
-        print(f'{action}: Unknown command. See `help`\n')
+        print(f'{action}: Unknown command, see `help` for available commands\n')

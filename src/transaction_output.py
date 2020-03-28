@@ -21,8 +21,15 @@ class Transaction_Output:
         self.previous_transaction_id = previous_transaction_id
         self.transaction_id = self.__hash__().hexdigest()
     
+    def dumps(self):
+        return json.dumps(
+            dict(
+                receiver_address = self.receiver_address,
+                amount = self.amount,
+                previous_transaction_id = self.previous_transaction_id,
+                transaction_id = self.transaction_id                
+            ), sort_keys=True
+        )
+
     def __hash__(self):
         return SHA256.new(jsonpickle.encode(self).encode())
-
-    def __str__(self):
-        return f'receiver_address: {self.receiver_address}\namount: {self.amount}\nprevious_transaction_id: {self.previous_transaction_id}\ntransaction_id: {self.transaction_id}'

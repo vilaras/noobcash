@@ -30,26 +30,24 @@ class Block:
 		self.hash = -1
 	
 	def __hash__(self):
-		# In order to not include the hash attribute in hash calculation
-        # Please find a better way to do this
-		temp_hash, temp_timestamp = self.hash, self.timestamp
-		self.hash, self.timestamp = -1, ''
-		h = SHA256.new(jsonpickle.encode(self).encode())
-		self.hash, self.timestamp = temp_hash, temp_timestamp
+		toJSON = self.dumps()
 
-		return h
-
-	def __str__(self):
-		tx_str = '['
-		for tx in self.transactions:
-			tx_str = tx_str + "\n" + str(tx)
-		
-		tx_str += ']\n'
-
-		return f'index: {self.index}\nprevious_hash: {self.previous_hash}\nnonce: {self.nonce}\n\ntransactions: {tx_str}\ntimestamp: {self.timestamp}\nhash: {self.hash}\n'
+		return SHA256.new(jsonpickle.encode(toJSON).encode())
 
 	def __eq__(self, other):
 	 return self.hash == other.hash
+
+	def dumps(self):
+		json_transactions = [transaction.dumps() for transaction in self.transactions]
+
+		return json.dumps(
+			dict(
+				index = self.index,
+				previous_hash = self.previous_hash,
+				nonce = self.nonce,
+				transactions = json_transactions,
+			), sort_keys=True
+		)
 
 	def setup_mined_block(self, nonce):
 		self.nonce = nonce

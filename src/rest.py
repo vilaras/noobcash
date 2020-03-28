@@ -36,14 +36,12 @@ def im_bootstrap(host):
 # Testing
 #.......................................................................................
 
-@app.route('/resolve', methods=['GET'])
-def resolve():
-    return jsonify(node.resolve_conflicts())
-
-
-@app.route('/stress_test', methods=['GET'])
+@app.route('/stress_test', methods=['POST'])
 def stress_test():
-    file = f'../5nodes/transactions{node.host[-1]}.txt' 
+    data = request.get_json()
+    n = jsonpickle.decode(json.dumps(data["data"]))
+
+    file = f'../{n}nodes/transactions{node.host[-1]}.txt' 
     with open(file) as infile:
         for line in infile:
             inputs = line.split()
@@ -61,11 +59,11 @@ def stress_test():
 
 @app.route('/create_transaction', methods=['POST'])
 def create_transaction():
-    data = request.get_json()
-    id = int(data["id"])
-    amount = int(data["amount"])
-
     try:
+        data = request.get_json()
+        id = int(data["id"])
+        amount = int(data["amount"])
+
         address = ''
         for ring_node in node.ring.values():
             if ring_node.id == id:
@@ -74,7 +72,7 @@ def create_transaction():
         t = node.create_transaction(address, amount)
 
     except Exception as e:
-        return jsonify(f'Exception while creating transaction \n{e.__class__.__name__}: {e}\n'), 403
+        return jsonify(f'{e}\n'), 403
 
 
     return jsonify("Transaction accepted!\n"), 200   

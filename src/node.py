@@ -14,14 +14,14 @@ from broadcast import Broadcast
 from config import *
 
 # Util imports
-import requests
-import jsonpickle
-from copy import deepcopy
-from subprocess import Popen
 import asyncio
 import os
 import signal
 import threading
+import requests
+import jsonpickle
+from copy import deepcopy
+from subprocess import Popen
 
 
 '''
@@ -98,6 +98,15 @@ class Node:
 		create, sign and broadcast a new transaction of <amount> NBC to the address <receiver> 
 	'''
 	def create_transaction(self, receiver_address, amount):
+		if not self.validate_user(receiver_address):
+			raise Exception("I don't know the receiver!")
+
+		if self.wallet.public_key == receiver_address:
+			raise Exception("You can't send money to yourself!")
+
+		if amount <= 0:
+			raise Exception("You actually need to send some money")
+
 		UTXOs = self.ring[self.wallet.public_key].UTXOs
 		transaction_inputs = []
 		transaction_outputs = []
@@ -130,9 +139,6 @@ class Node:
 
 			return t
 
-		# else:
-		# 	raise Exception('Something went wrong in create transaction')
-		
 
 	def update_balances(self):
 		for ring_node in self.ring.values():
@@ -415,7 +421,7 @@ class Node:
 	# for the whole blockchain. If this blockchain is invalid greedily try
 	# the next one etc...
 	def resolve_conflicts(self):	
-		print("CONSENSUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUS")
+		print("Running consensus")
 		responses = asyncio.run(self.broadcast.broadcast('get_blockchain_length', {}, 'GET'))
 
 		# Decode the response data into python objects 

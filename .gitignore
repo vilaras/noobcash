@@ -3,5 +3,4 @@ src/__pycache__*
 .vscode*
 commands.txt
 update_host.sh
-check_state.py
-stress_test.py
+update_vms.sh
