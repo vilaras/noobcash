@@ -60,5 +60,5 @@ class Block:
 		self.nonce = nonce
 		self.hash = self.__hash__().hexdigest()
 
-	def add_transactions(self, transactions):
-		self.transactions.extend(transactions)
+	def set_transactions(self, transactions):
+		self.transactions = transactions

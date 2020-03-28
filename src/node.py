@@ -60,10 +60,17 @@ class Node:
 		self.ring = {}   
 
 		# The miner subprocess PID
-		# If it is -1 the subprocess is not running
-		self.miner_pid = -1
+		# If it is None the subprocess is not running
+		self.miner_pid = None
+
+		# The lock prevents multiple request threads to attempt
+		# starting the miner
 		self.miner_lock = threading.Lock()
 
+		# Block receiver lock
+		# We have to stop receiving blocks while running consensus
+		# in order not to interfere with the process
+		self.block_receiver_lock = threading.Lock()
 
 	def create_new_block(self):
 		self.current_block = Block(len(self.blockchain), self.blockchain[-1].hash, [])
@@ -296,6 +303,12 @@ class Node:
 				return 'ok'
 
 			else:
+				for existent_block in reversed(self.blockchain[:-1]):
+					if existent_block.hash == block.previous_hash:
+						# The new block doesn't increase our chain since it is 
+						# a branch of an older block
+						return 'redundant'
+
 				# The block is valid but the chaining is faulty, 
 				# we probably have a fork
 				return 'consensus'
@@ -322,7 +335,7 @@ class Node:
 	def start_miner(self):
 		# If miner not already running			
 		# Add transactions to the block to start mining
-		self.current_block.add_transactions(self.pending_transactions[:BLOCK_CAPACITY])
+		self.current_block.set_transactions(self.pending_transactions[:BLOCK_CAPACITY])
 
 		try:
 			proc = Popen(['python3', 'miner.py', self.host, jsonpickle.encode({"data": self.current_block})])
@@ -336,7 +349,7 @@ class Node:
 		# Kill the miner process, we lost the race
 		try:
 			os.kill(self.miner_pid, signal.SIGTERM)
-			self.miner_pid = -1
+			self.miner_pid = None
 
 		except Exception as e:
 			print(f'Exception in miner termination: \n{e.__class__.__name__}: {e}')
@@ -344,8 +357,8 @@ class Node:
 
 	def request_miner_access(self):
 		with self.miner_lock:
-			if self.miner_pid == -1:
-				self.miner_pid = 1
+			if self.miner_pid == None:
+				self.miner_pid = 'placeholder'
 				return True
 
 			else:
@@ -402,22 +415,25 @@ class Node:
 	# for the whole blockchain. If this blockchain is invalid greedily try
 	# the next one etc...
 	def resolve_conflicts(self):	
+		print("CONSENSUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUS")
 		responses = asyncio.run(self.broadcast.broadcast('get_blockchain_length', {}, 'GET'))
 
 		# Decode the response data into python objects 
 		blockchain_lengths = map(jsonpickle.decode, responses)
-		sorted_blockchain_lengths = sorted(blockchain_lengths, key=lambda item: item['data'])
-
-		# We are fine, we have the longest chain
-		if sorted_blockchain_lengths[0]['data'] <= len(self.blockchain):
-			return
+		sorted_blockchain_lengths = sorted(blockchain_lengths, key=lambda item: item['data'], reverse=True)
 
 		for item in sorted_blockchain_lengths:
+			# We are fine, we have the longest chain
+
 			url = f'http://{item["host"]}/get_blockchain'
 			headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 			response = requests.get(url, headers)
-
 			candidate_blockchain = jsonpickle.decode(response.json())['data']
+
+			if len(candidate_blockchain) <= len(self.blockchain):
+				self.current_block.transactions = []
+				return
+			
 			if len(candidate_blockchain) != int(item['data']):
 				print("You lied to me!")
 				continue
@@ -430,16 +446,19 @@ class Node:
 				while self.blockchain[i] == candidate_blockchain[i]:
 					i += 1
 
-				his_transactions_ids = [transaction.transaction_id for transaction in candidate_blockchain[i:]]
+				his_transactions_ids = []
+				for block in candidate_blockchain[i:]:
+					for transaction in block.transactions:
+						his_transactions_ids.append(transaction.transaction_id)
 
 				self.blockchain = candidate_blockchain
 				self.update_pending_transactions(his_transactions_ids, False)
-				self.create_new_block()
 
 				break
 		
 		# Executes only if we didn't break the for loop
 		else:
-			print("We didn't find a valid")
+			print("We didn't find a valid chain")
 
 		
+		self.create_new_block()

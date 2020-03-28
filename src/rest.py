@@ -53,7 +53,7 @@ def stress_test():
             
             print(response.json())
 
-    return "hi"
+    return jsonify("Test started"), 200
 
 
 # Send data
@@ -213,35 +213,40 @@ def receive_block():
     data = request.get_json()
     block = jsonpickle.decode(json.dumps(data["data"]))
 
-    res = node.validate_block(block, node.blockchain[-1])
-    if res == 'error':
-        return jsonify("Block declined\n"), 403 
+    with node.block_receiver_lock:
+        res = node.validate_block(block, node.blockchain[-1])
+        if res == 'error':
+            return jsonify("Block declined\n"), 403 
 
-    else:
-        # Kill the miner process
-        try:
-            node.stop_miner()
+        elif res == 'redundant':
+            return jsonify("Block dropped but it's all fine"), 200
 
-        except Exception as e:
-            return jsonify(f'Exception while killing miner in /receive_block: \n{e.__class__.__name__}: {e}\n'), 403
+        else:
+            # Kill the miner process
+            try:
+                node.stop_miner()
 
-        if res == 'ok':
-            node.add_block_to_chain(block, False)
+            except Exception as e:
+                return jsonify(f'Exception while killing miner in /receive_block: \n{e.__class__.__name__}: {e}\n'), 403
 
-            if len(node.pending_transactions) >= BLOCK_CAPACITY:
-                if node.request_miner_access():
-                    node.start_miner()
 
-            return jsonify("Block accepted!\n"), 200
+            if res == 'ok': #or res == 'consensus':
+                node.add_block_to_chain(block, False)
 
-        if res == 'consensus':
-            node.resolve_conflicts()
+                if len(node.pending_transactions) >= BLOCK_CAPACITY:
+                    if node.request_miner_access():
+                        node.start_miner()
 
-            if len(node.pending_transactions) >= BLOCK_CAPACITY:
-                if node.request_miner_access():
-                    node.start_miner()
+                return jsonify("Block accepted!\n"), 200
 
-            return jsonify("Had to run consensus"), 200
+            if res == 'consensus':
+                node.resolve_conflicts()
+
+                if len(node.pending_transactions) >= BLOCK_CAPACITY:
+                    if node.request_miner_access():
+                        node.start_miner()
+
+                return jsonify("Had to run consensus"), 200
 
 
 
