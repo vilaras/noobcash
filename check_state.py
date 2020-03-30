@@ -14,7 +14,6 @@ b = Broadcast('test')
 for i in range(n):
     b.add_peer(f'127.0.0.1:500{i}')
 
-
 responses = asyncio.run(b.broadcast('get_pending_lengths', {}, 'GET'))
 pending_lengths = map(jsonpickle.decode, responses)
 
@@ -22,16 +21,12 @@ print("Pending lengths:\n")
 for tx in pending_lengths:
     print (f'{tx["host"]} -> {tx["data"]}')
 
-
-
 responses = asyncio.run(b.broadcast('get_orphan_lengths', {}, 'GET'))
 orphan_lengths = map(jsonpickle.decode, responses)
 
 print("\nOrphan_lengths:\n")
 for tx in orphan_lengths:
     print (f'{tx["host"]} -> {tx["data"]}')
-
-
 
 responses = asyncio.run(b.broadcast('get_blockchain_length', {}, 'GET'))
 blockchain_lengths = map(jsonpickle.decode, responses)

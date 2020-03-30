@@ -7,6 +7,7 @@ import requests
 import json
 import jsonpickle
 import asyncio
+import threading
 
 # Class imports
 from node import Node
@@ -17,6 +18,7 @@ from config import *
 base_url = "http://"
 bootstrap_url = f'{base_url}{BOOTSTRAP}'
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+register_lock = threading.Lock()
 
 app = Flask(__name__)
 CORS(app)
@@ -324,24 +326,25 @@ def register_client():
 
 @app.route('/client_connect', methods=['POST'])
 def client_connect():
-    if im_bootstrap(f'{ip}:{port}'):
-        if node.current_id_count <= NUMBER_OF_NODES:
-            data = request.get_json()
-            public_key = data['public_key']
-            remote_host = data['host']
-            
-            node.register_node_to_ring(public_key, remote_host) 
-            
-            if node.current_id_count == NUMBER_OF_NODES:
-                asyncio.run(node.broadcast.broadcast("client_accepted", node.ring, 'POST'))
-                node.initialize_network()
+    with register_lock: 
+        if im_bootstrap(f'{ip}:{port}'):
+            if node.current_id_count <= NUMBER_OF_NODES:
+                data = request.get_json()
+                public_key = data['public_key']
+                remote_host = data['host']
+                
+                node.register_node_to_ring(public_key, remote_host) 
+                
+                if node.current_id_count == NUMBER_OF_NODES:
+                    asyncio.run(node.broadcast.broadcast("client_accepted", node.ring, 'POST'))
+                    node.initialize_network()
 
 
-            return jsonify("Welcome to our noobcash network!\n"), 200
+                return jsonify("Welcome to our noobcash network!\n"), 200
 
-        else:  
-            # Forbidden action
-            return jsonify("Sorry, we are full...\n"), 403
+            else:  
+                # Forbidden action
+                return jsonify("Sorry, we are full...\n"), 403
 
         
 
