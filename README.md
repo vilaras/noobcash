@@ -28,8 +28,9 @@ You can configure the parameters in noobcash/src/config.py:
 
 First of all start a server for each participant:
 
-    $ cd noobcash/src
+    $ cd noobcash
     $ source .venv/bin/activate
+    $ cd src
     $ python3 rest.py -i [IP] -p [PORT]
 
 Then in a separate terminal start a client for each participant:
