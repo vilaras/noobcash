@@ -120,7 +120,7 @@ class Node:
 		if total < amount:
 			raise Exception("You don't have enough money, unfortunately...")
 
-		t = Transaction(self.wallet.public_key, receiver_address, amount, deepcopy(transaction_inputs))
+		t = Transaction(self.wallet.public_key, receiver_address, amount, transaction_inputs)
 
 		UTXO = Transaction_Output(receiver_address, amount, t.transaction_id)
 		transaction_outputs.append(UTXO)

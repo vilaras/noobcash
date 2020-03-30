@@ -16,6 +16,7 @@ Install requires packages:
     $ pip3 install -r requirements.txt
 
 ## Parameters
+
 You can configure the parameters in noobcash/src/config.py:
 
 * NUMBER_OF_NODES
