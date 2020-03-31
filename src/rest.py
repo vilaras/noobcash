@@ -43,7 +43,12 @@ def stress_test():
     data = request.get_json()
     n = jsonpickle.decode(json.dumps(data["data"]))
 
-    file = f'../{n}nodes/transactions{node.host[-1]}.txt' 
+    host_id = -1
+    for ring_node in node.ring.values():
+        if ring_node.public_key == node.wallet.public_key:
+            host_id = ring_node.id
+
+    file = f'../{n}nodes/transactions{host_id}.txt' 
     with open(file) as infile:
         for line in infile:
             inputs = line.split()
