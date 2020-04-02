@@ -87,22 +87,29 @@ def create_transaction():
 
 @app.route('/found_block', methods=['POST'])
 def found_block():
-    data = request.get_json()
-    block = jsonpickle.decode(json.dumps(data["data"]))
+    with node.block_receiver_lock:
+        data = request.get_json()
+        block = jsonpickle.decode(json.dumps(data["data"]))
 
-    # Add block to chain 
-    node.add_block_to_chain(block, True)
-    
-    # Kill the miner process
-    try:    
-        node.stop_miner()
-                
-    except Exception as e:
-        return jsonify(f'Exception while killing miner in /found_block: \n{e.__class__.__name__}: {e}\n'), 403 
+        # Kill the miner process
+        try:    
+            node.stop_miner()
+                    
+        except Exception as e:
+            return jsonify(f'Exception while killing miner in /found_block: \n{e.__class__.__name__}: {e}\n'), 403 
 
-    if len(node.pending_transactions) >= BLOCK_CAPACITY:
-        if node.request_miner_access():
-            node.start_miner()
+        # Add block to chain 
+        res = node.validate_block(block, node.blockchain[-1])
+        if res == 'ok':
+            node.add_block_to_chain(block, True)
+
+        else:
+            return jsonify("Block accepted!\n"), 200
+        
+        
+        if len(node.pending_transactions) >= BLOCK_CAPACITY:
+            if node.request_miner_access():
+                node.start_miner()
 
     # Broadcast block
     node.broadcast_block(block)
