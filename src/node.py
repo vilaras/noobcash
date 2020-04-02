@@ -440,7 +440,7 @@ class Node:
 				self.current_block.transactions = []
 				return
 			
-			if len(candidate_blockchain) != int(item['data']):
+			if len(candidate_blockchain) < int(item['data']):
 				print("You lied to me!")
 				continue
 
@@ -449,7 +449,8 @@ class Node:
 				
 				# Find the new veryfied transactions to remove from our pending
 				i = 0
-				while self.blockchain[i] == candidate_blockchain[i]:
+				min_len = min(len(self.blockchain), len(candidate_blockchain))
+				while i < min_len and self.blockchain[i] == candidate_blockchain[i]:
 					i += 1
 
 				his_transactions_ids = []
