@@ -324,6 +324,27 @@ class Node:
 			return 'error'
 
 
+	# When we adopt another chain we have to reconstruct the
+	# state of the network as dicatetd by this chain
+	# 
+	# Thus, starting from the genesis block and
+	# appending each block from the chain we have to
+	# recompute the UTXOs for every node
+	def validate_chain(self, chain):
+		# A blockchain with only the genesis block is valid
+		if len(chain) == 1:
+			return True
+		
+		previous_block = chain[0]
+		for block in chain[1:]:
+			if self.validate_block(block, previous_block) != 'ok':
+				return False
+
+			previous_block = block
+
+		return True
+
+
 	# Broadcast functions
 
 	def broadcast_block(self, block):
@@ -373,7 +394,6 @@ class Node:
 
 
 
-
 	# Concensus functions
 
 	# We have aquired a new block, either by the network or by us
@@ -391,27 +411,6 @@ class Node:
 					self.pending_transactions
 				)
 			)
-
-
-	# When we adopt another chain we have to reconstruct the
-	# state of the network as dicatetd by this chain
-	# 
-	# Thus, starting from the genesis block and
-	# appending each block from the chain we have to
-	# recompute the UTXOs for every node
-	def valid_chain(self, chain):
-		# A blockchain with only the genesis block is valid
-		if len(chain) == 1:
-			return True
-		
-		previous_block = chain[0]
-		for block in chain[1:]:
-			if self.validate_block(block, previous_block) != 'ok':
-				return False
-
-			previous_block = block
-
-		return True
 
 
 	# Asks each user for it's blockchain and keeps the longest valid one 
