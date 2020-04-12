@@ -1,9 +1,11 @@
 from src.broadcast import Broadcast
 from src.block import Block
+from src.config import *
 
 import jsonpickle
 import json
 import asyncio
+import requests
 
 from argparse import ArgumentParser
 
@@ -18,9 +20,15 @@ args = parser.parse_args()
 n = args.nodes
 verbose = args.verbose
  
+url = f'http://{BOOTSTRAP}/get_nodes'
+headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+response = requests.get(url, headers)
+
+hosts = jsonpickle.decode(response.json())['data']
+
 b = Broadcast('test')
-for i in range(n):
-    b.add_peer(f'127.0.0.1:500{i}')
+for host in hosts:
+    b.add_peer(host)
 
 
 responses = asyncio.run(b.broadcast('get_blockchain', {}, 'GET'))
@@ -37,12 +45,12 @@ for blockchain in blockchains_data:
     blockchains.append(block_id_list)
 
 if all_the_same(blockchains):
-    print("They are the same!")
+    print("All the blockchains are the same!")
 
 else: 
-    print("Something went wrong")
+    print("Something went wrong, blockchains have diverged")
 
 if verbose:
-    print("printing the hash for each block for readability purposes\n")
+    print("printing the hash of each block for readability purposes\n")
     for blockchain in blockchains:
         print(blockchain)

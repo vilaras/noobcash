@@ -152,6 +152,12 @@ def get_orphan_lengths():
     return jsonify(jsonpickle.encode({"data": data, "host": node.host}))
 
 
+@app.route('/get_nodes', methods=['GET'])
+def get_nodes():
+    data = [ring_node.host for ring_node in node.ring.values()]
+    return jsonify(jsonpickle.encode({"data": data}))
+
+
 @app.route('/balance', methods=['GET'])
 def show_participants():
     # Return a list [id: public_key] for the user to see

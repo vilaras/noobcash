@@ -23,6 +23,7 @@ You can configure the parameters in noobcash/src/config.py:
 * BOOTSTRAP
 * BLOCK_CAPACITY 
 * MINING_DIFFICULTY
+* STARTING NBC
 
 ## Usage
 
@@ -39,7 +40,6 @@ Then in a separate terminal start a client for each participant:
     $ source .venv/bin/activate
     $ python3 client.py [IP] [PORT]
 
-
 ## Commands
 
 From the client you can give the following commands:
@@ -50,3 +50,13 @@ From the client you can give the following commands:
 * `view all`                  
 * `exit`                      
 
+## Testing
+
+You can perform a stress test in the system using the test transactions in `noobcash/5nodes/` or `noobcash/10nodes/`:
+
+    $ python3 stress_test.py -n [NUMBER_OF_NODES]
+
+While the system is running, you can check the state of each node running:
+
+    $ python3 check_state.py -n [NUMBER_OF_NODES]
+    $ python3 check_blockchain.py -n [NUMBER_OF_NDOES] -v [VERBOSE]

@@ -1,14 +1,25 @@
 from src.broadcast import Broadcast
-import asyncio
+from src.config import *
+
 from argparse import ArgumentParser
+import requests
+import asyncio
+import jsonpickle
 
 parser = ArgumentParser()
 parser.add_argument('-n', '--nodes', default=5, type=int, help='number of nodes running')
 args = parser.parse_args()
 n = args.nodes
 
-b = Broadcast('test')
-for i in range(n):
-    b.add_peer(f'127.0.0.1:500{i}')
+url = f'http://{BOOTSTRAP}/get_nodes'
+headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+response = requests.get(url, headers)
 
+hosts = jsonpickle.decode(response.json())['data']
+
+b = Broadcast('test')
+for host in hosts:
+    b.add_peer(host)
+
+print("Starting the stress test...")
 responses = asyncio.run(b.broadcast('stress_test', n, 'POST'))

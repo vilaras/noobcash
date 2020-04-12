@@ -202,8 +202,8 @@ class Node:
 	# Initialization Functions
 
 	def create_genesis_block(self):
-		t = Transaction(0, self.wallet.public_key, NUMBER_OF_NODES * 100, [])
-		utxo = Transaction_Output(self.wallet.public_key, NUMBER_OF_NODES * 100, t.transaction_id) 
+		t = Transaction(0, self.wallet.public_key, NUMBER_OF_NODES * STARTING_NBC, [])
+		utxo = Transaction_Output(self.wallet.public_key, NUMBER_OF_NODES * STARTING_NBC, t.transaction_id) 
 		t.set_transaction_outputs([utxo])
 		t.sign_transaction(self.wallet.private_key)
 
@@ -223,7 +223,7 @@ class Node:
 
 		for peer in self.ring.values():
 			if peer.public_key != self.wallet.public_key:
-				t = self.create_transaction(peer.public_key, 100)
+				t = self.create_transaction(peer.public_key, STARTING_NBC)
 
 
 	# Validation Functions

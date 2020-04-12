@@ -35,7 +35,7 @@ class Block:
 		return SHA256.new(jsonpickle.encode(toJSON).encode())
 
 	def __eq__(self, other):
-	 return self.hash == other.hash
+		return self.hash == other.hash
 
 	def dumps(self):
 		json_transactions = [transaction.dumps() for transaction in self.transactions]
