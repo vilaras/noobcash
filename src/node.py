@@ -389,7 +389,6 @@ class Node:
 				return True
 
 			else:
-				print("Miner already running! Wait to start another one")
 				return False
 
 
